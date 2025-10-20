@@ -1,0 +1,22 @@
+# Ambientes Virtuais
+venv/
+env/
+.venv/
+
+# Arquivos de Cache do Python
+__pycache__/
+*.pyc
+
+# Arquivos de Configuração Local e Segredos
+.env
+
+
+# Arquivos de IDE
+.vscode/
+.idea/
+
+# Arquivos de Log
+*.log
+
+# Arquivos Estáticos coletados pelo Django
+staticfiles/
