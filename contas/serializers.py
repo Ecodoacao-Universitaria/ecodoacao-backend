@@ -7,7 +7,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'saldo_moedas', 'is_staff']
 
 
-class RegistroSerializer(serializers.ModelSerializer):
+class CadastroSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Usuario
