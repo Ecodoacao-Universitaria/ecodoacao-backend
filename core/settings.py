@@ -92,6 +92,8 @@ DATABASES = {
     }
 }
 
+# usuário personalizado
+AUTH_USER_MODEL = 'contas.Usuario'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -115,9 +117,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'  # Para português do Brasil
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo'  # Fuso horário do Brasil
 
 USE_I18N = True
 
