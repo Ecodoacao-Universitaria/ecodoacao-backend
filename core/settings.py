@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-+cppi1m)qgxgq!-&qiqf((40s5lnur0!6j^lw!vwwcg$^rs0ho'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') 
 
 ALLOWED_HOSTS = []
 
@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'contas',
+    'doacoes',
+    'storages',
+
 ]
 
 MIDDLEWARE = [
@@ -153,3 +156,25 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
+
+# Lógica para diferenciar desenvolvimento de produção
+# No Render, é necessario configurar DEBUG como 'False'
+if not DEBUG:
+    # --- Configurações do Amazon S3 ---
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    
+   
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'sa-east-1')  
+    
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = 'public-read'
+    
+    # Diz ao Django para usar o S3 para todos os uploads de mídia
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    
+else:
+    # --- Configurações para Desenvolvimento (como já estava) ---
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
