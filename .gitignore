@@ -11,8 +11,6 @@ __pycache__/
 .env
 
 
-#migrations/
-migrations
 
 # Arquivos de IDE
 .vscode/
