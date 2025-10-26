@@ -25,24 +25,25 @@ class CadastroUsuarioView(generics.CreateAPIView):
 @permission_classes([AllowAny])
 def criar_superuser_temporario(request):
   
-    Usuario = get_user_model()
-    
-    
-    ADMIN_USERNAME = os.getenv('ADMIN_USER', 'admin_render')
-    ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin.render@ufrpe.br')
-    ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'senha123')
+    try:
+        Usuario = get_user_model()
+        
+        # Lendo as variáveis de ambiente que você configurou
+        ADMIN_USERNAME = os.getenv('ADMIN_USER')
+        ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
+        ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
 
-    if not ADMIN_PASSWORD or ADMIN_PASSWORD == 'senha123':
-        return Response(
-            {"erro_real_capturado_pelo_django": str(e)}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        # Se qualquer uma estiver faltando, falhe com uma mensagem clara
+        if not all([ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD]):
+            return Response(
+                {"erro": "Uma ou mais variáveis (ADMIN_USER, ADMIN_EMAIL, ADMIN_PASSWORD) não foram configuradas no Render."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-
-
-    if not Usuario.objects.filter(username=ADMIN_USERNAME).exists():
-        try:
+        
+        if not Usuario.objects.filter(username=ADMIN_USERNAME).exists():
             
+            # Tenta criar o superusuário
             Usuario.objects.create_superuser(
                 username=ADMIN_USERNAME,
                 email=ADMIN_EMAIL,
@@ -52,10 +53,15 @@ def criar_superuser_temporario(request):
                 {"sucesso": f"Usuário '{ADMIN_USERNAME}' criado com sucesso."}, 
                 status=status.HTTP_201_CREATED
             )
-        except Exception as e:
-            return Response({"erro": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
+        else:
+            return Response(
+                {"mensagem": f"Usuário '{ADMIN_USERNAME}' já existe."}, 
+                status=status.HTTP_200_OK
+            )
+            
+    except Exception as e:
+        # Captura qualquer exceção que ocorra durante o processo
         return Response(
-            {"mensagem": f"Usuário '{ADMIN_USERNAME}' já existe."}, 
-            status=status.HTTP_200_OK
+            {"erro_real_capturado_pelo_django": str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
