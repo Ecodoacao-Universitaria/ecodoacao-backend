@@ -16,10 +16,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-+cppi1m)qgxgq!-&qiqf((40s5lnur0!6j^lw!vwwcg$^rs0ho'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') 
 
-ALLOWED_HOSTS = []
+
+DEBUG = os.getenv('DEBUG', 'True') == 'True' # Lê o DEBUG do .env
+
+# Lê os hosts permitidos da variável de ambiente
+ALLOWED_HOSTS_STRING = os.getenv('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = ALLOWED_HOSTS_STRING.split(',') if ALLOWED_HOSTS_STRING else []
 
 
 # Application definition
@@ -145,11 +148,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
 # permitir todas as origens para desenvolvimento
-CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOWED_ORIGINS = [
-#     "https://frontend-exemplo.com",
-#     "http://localhost:3000",
-# ]
+#CORS_ALLOW_ALL_ORIGINS = True
+
+
+CORS_ALLOWED_ORIGINS_STRING = os.getenv('CORS_ALLOWED_ORIGINS', '')
+CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS_STRING.split(',') if CORS_ALLOWED_ORIGINS_STRING else []
 # permitir credenciais (cookies, autenticação HTTP, etc.)
 CORS_ALLOW_CREDENTIALS = True
 
