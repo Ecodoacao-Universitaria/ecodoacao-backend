@@ -34,7 +34,7 @@ def criar_superuser_temporario(request):
 
     if not ADMIN_PASSWORD or ADMIN_PASSWORD == 'senha123':
         return Response(
-            {"erro": "Senha do admin não configurada nas variáveis de ambiente."}, 
+            {"erro_real_capturado_pelo_django": str(e)}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
