@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CadastroUsuarioView
+from .views import CadastroUsuarioView, criar_superuser_temporario
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
@@ -10,4 +10,8 @@ urlpatterns = [
     #url para autenticação e Refresh
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+
+    #url temporária para criar superusuário na produção
+    path('criar-superuser-temporario/', criar_superuser_temporario, name='criar_superuser_temporario'),
 ]
