@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Doacao, TipoDoacao
+from .models import Doacao, TipoDoacao, Badge
 
 class DoacaoSerializer(serializers.ModelSerializer):
     
@@ -16,3 +16,29 @@ class DoacaoSerializer(serializers.ModelSerializer):
                   'data_submissao',
         ]
         
+
+class BadgeSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Badge
+        fields = [
+                 'nome', 
+                 'descricao', 
+                 'imagem_url'
+        ]
+
+
+class CriarDoacaoSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Doacao
+        fields = [
+            'tipo_doacao',
+            'evidencia_foto'
+        ]
+    
+    def validar_evidencia_foto(self, value):
+        if value is None:
+            raise serializers.ValidationError("A evidência em foto é obrigatória.")
+        return value
+

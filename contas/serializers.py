@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Usuario
+from doacoes.serializers import BadgeSerializer
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,3 +28,11 @@ class CadastroSerializer(serializers.ModelSerializer):
         #create_user garante que o usuario não é admin por padrão(is_staff = False) e faz o hash da senha
         usuario = Usuario.objects.create_user(**validated_data)
         return usuario
+    
+
+class DashboardUsuarioSerializer(serializers.ModelSerializer):
+    badges_conquistados = BadgeSerializer(many=True, read_only=True, source='badges_conquistados.badge') #Acessa o badge relacionado no UsuarioBadge
+
+    class Meta:
+        model = Usuario
+        fields = ['username', 'email', 'saldo_moedas', 'badges_conquistados'] #exibir apenas os campos relevantes para o dashboard

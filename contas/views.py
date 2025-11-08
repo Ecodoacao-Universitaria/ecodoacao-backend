@@ -1,10 +1,10 @@
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
-from .serializers import CadastroSerializer
+from .serializers import CadastroSerializer, DashboardUsuarioSerializer
 from .models import Usuario
 import os
 
@@ -65,3 +65,14 @@ def criar_superuser_temporario(request):
             {"erro_real_capturado_pelo_django": str(e)}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+    
+
+
+class DashboardUsuarioView(generics.RetrieveAPIView):
+    queryset = Usuario.objects.all()
+    serializer_class = DashboardUsuarioSerializer
+    permission_classes = [IsAuthenticated]  # Apenas usuários autenticados podem acessar esta view
+
+    def get_object(self):
+        # Retorna o usuário logado
+        return self.request.user

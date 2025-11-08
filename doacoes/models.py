@@ -38,3 +38,29 @@ class Doacao(models.Model):
 
     def __str__(self):       
         return f"Doação de {self.tipo_doacao.nome} por {self.doador.username} ({self.status})"
+
+
+class Badge(models.Model):
+    
+    nome = models.CharField(max_length=100, unique=True)
+    descricao = models.TextField(help_text="Critério de conquista")
+    custo_moedas = models.IntegerField(default=0, help_text="Custo para 'comprar' com moedas")
+    # URL da imagem do badge no S3
+    imagem_url = models.URLField(max_length=500, blank=True)
+
+    def __str__(self):
+        return self.nome
+    
+
+class UsuarioBadge(models.Model):
+
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='badges_conquistados')
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
+    data_conquista = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Garantir que um usuário não possa conquistar o mesmo badge mais de uma vez
+        unique_together = ('usuario', 'badge')
+
+    def __str__(self):
+        return f"{self.usuario.username} - {self.badge.nome}"
