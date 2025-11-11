@@ -6,18 +6,42 @@ env/
 # Arquivos de Cache do Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # Arquivos de Configuração Local e Segredos
 .env
-
-
+.env.*
 
 # Arquivos de IDE
 .vscode/
 .idea/
 
-# Arquivos de Log
+# Logs
 *.log
 
-# Arquivos Estáticos coletados pelo Django
+# Arquivos Estáticos e de Mídia (gerados em runtime)
 staticfiles/
+media/
+
+# Banco de dados local (caso use SQLite)
+*.sqlite3
+
+# Docker
+*.pid
+*.sock
+*.tar
+docker-compose.override.yml
+Docker-compose.override.yml
+postgres_data/
+__data__/
+*.db
+
+# Compilações / builds
+build/
+dist/
+*.egg-info/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

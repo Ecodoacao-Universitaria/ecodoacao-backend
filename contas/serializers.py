@@ -3,9 +3,14 @@ from .models import Usuario
 from doacoes.serializers import BadgeSerializer
 
 class UsuarioSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+    
     class Meta:
         model = Usuario
-        fields = ['id', 'username', 'email', 'saldo_moedas', 'is_staff']
+        fields = ['id', 'username', 'email', 'saldo_moedas', 'is_staff', 'is_active', 'role', 'date_joined']
+    
+    def get_role(self, obj):
+        return "Admin" if obj.is_staff else "Usuário"
 
 
 class CadastroSerializer(serializers.ModelSerializer):
@@ -32,7 +37,11 @@ class CadastroSerializer(serializers.ModelSerializer):
 
 class DashboardUsuarioSerializer(serializers.ModelSerializer):
     badges_conquistados = BadgeSerializer(many=True, read_only=True, source='badges_conquistados.badge') #Acessa o badge relacionado no UsuarioBadge
+    role = serializers.SerializerMethodField()
 
     class Meta:
         model = Usuario
-        fields = ['username', 'email', 'saldo_moedas', 'badges_conquistados'] #exibir apenas os campos relevantes para o dashboard
+        fields = ['username', 'email', 'saldo_moedas', 'badges_conquistados', 'role'] #exibir apenas os campos relevantes para o dashboard
+    
+    def get_role(self, obj):
+        return "Admin" if obj.is_staff else "Usuário"

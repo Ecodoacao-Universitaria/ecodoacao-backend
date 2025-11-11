@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'contas',
     'doacoes',
     'storages',
-
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -161,7 +161,8 @@ CORS_ALLOW_CREDENTIALS = True
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # Lógica para diferenciar desenvolvimento de produção

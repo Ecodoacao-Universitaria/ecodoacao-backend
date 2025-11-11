@@ -1,0 +1,49 @@
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: doacoes_db
+    environment:
+      POSTGRES_DB: doacoes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .      
+    container_name: doacoes_backend
+    command: >
+        sh -c "
+          until pg_isready -h db -U postgres; do
+            echo '⏳ Aguardando o banco de dados...';
+            sleep 2;
+          done &&
+          python manage.py migrate &&
+          python manage.py runserver 0.0.0.0:8000
+        "
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Django vai rodar sem cache de buffer de output (importante pra logs)
+      PYTHONUNBUFFERED: 1
+      DJANGO_SETTINGS_MODULE: core.settings
+
+volumes:
+  postgres_data:
