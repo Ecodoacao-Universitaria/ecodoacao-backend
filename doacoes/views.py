@@ -47,7 +47,7 @@ class AdminAtualizarDoacaoView(generics.RetrieveUpdateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if novo_status == 'APROVADO':
+        if novo_status == 'APROVADA':
             doador = doacao.doador
             moedas_ganhas = doacao.tipo_doacao.moedas_atribuidas
             
@@ -56,22 +56,22 @@ class AdminAtualizarDoacaoView(generics.RetrieveUpdateAPIView):
             doador.save()
             
             # Atualiza a doação
-            doacao.status = 'APROVADO'
+            doacao.status = 'APROVADA'
 
-        elif novo_status == 'REJEITADO':
-            motivo = request.data.get('motivo_rejeicao')
+        elif novo_status == 'RECUSADA':
+            motivo = request.data.get('motivo_recusa')
 
             if not motivo:
                 return Response(
-                    {"erro": "Motivo de rejeição é obrigatório."},
+                    {"erro": "Motivo de recusa é obrigatório."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            doacao.status = 'REJEITADO'
-            doacao.motivo_rejeicao = motivo
+            doacao.status = 'RECUSADA'
+            doacao.motivo_recusa = motivo
 
         else:
             return Response(
-                {"erro": "Status inválido. Use 'APROVADO' ou 'REJEITADO'."},
+                {"erro": "Status inválido. Use 'APROVADA' ou 'RECUSADA'."},
                 status=status.HTTP_400_BAD_REQUEST
             )
             
@@ -80,7 +80,7 @@ class AdminAtualizarDoacaoView(generics.RetrieveUpdateAPIView):
         doacao.data_validacao = timezone.now()
         doacao.save()
         
-        return Response(DonationSerializer(doacao).data, status=status.HTTP_200_OK)
+        return Response(DoacaoSerializer(doacao).data, status=status.HTTP_200_OK)
     
 
 class HistoricoDoacoesView(generics.ListAPIView):
