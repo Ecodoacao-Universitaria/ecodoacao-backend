@@ -37,7 +37,7 @@ class CriarDoacaoSerializer(serializers.ModelSerializer):
             'evidencia_foto'
         ]
     
-    def validar_evidencia_foto(self, value):
+    def validate_evidencia_foto(self, value):
         if value is None:
             raise serializers.ValidationError("A evidência em foto é obrigatória.")
         return value

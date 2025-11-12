@@ -36,6 +36,15 @@ class Doacao(models.Model):
     validado_por = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='doacoes_validadas')
     data_validacao = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        ordering = ['-data_submissao']
+        verbose_name = "Doação"
+        verbose_name_plural = "Doações"
+        indexes = [
+            models.Index(fields=['status', 'data_submissao']),
+            models.Index(fields=['doador', 'status']),
+        ]
+
     def __str__(self):       
         return f"Doação de {self.tipo_doacao.nome} por {self.doador.username} ({self.status})"
 

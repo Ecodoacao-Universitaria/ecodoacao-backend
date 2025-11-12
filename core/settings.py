@@ -13,12 +13,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+cppi1m)qgxgq!-&qiqf((40s5lnur0!6j^lw!vwwcg$^rs0ho'
+# AVISO DE SEGURANÇA: não execute com debug ativado em produção!
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
+# AVISO DE SEGURANÇA: mantenha a chave secreta usada em produção em segredo!
+SECRET_KEY = os.getenv('SECRET_KEY')
 
+if not SECRET_KEY:
+    if DEBUG:
+        # Chave fixa para desenvolvimento - mantém sessões funcionando entre reinicializações
+        SECRET_KEY = 'django-insecure-chave-dev-local-mude-isso-em-producao-' + 'k' * 20
+        print("⚠️  AVISO: Usando SECRET_KEY padrão de desenvolvimento")
+        print("    Para produção, defina SECRET_KEY nas variáveis de ambiente")
+        print("    Gere uma com: python manage.py shell -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\"")
+    else:
+        raise ValueError(
+            "SECRET_KEY deve ser definida em modo de produção!\n"
+            "Gere uma com:\n"
+            "  python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
+        )
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True' # Lê o DEBUG do .env
 
 # Lê os hosts permitidos da variável de ambiente
 ALLOWED_HOSTS_STRING = os.getenv('ALLOWED_HOSTS', '')

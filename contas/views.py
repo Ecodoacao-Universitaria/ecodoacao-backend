@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from .serializers import CadastroSerializer, DashboardUsuarioSerializer, UsuarioSerializer
 from .models import Usuario
 import os
@@ -110,9 +111,7 @@ class ListarUsuariosView(generics.ListAPIView):
         search = self.request.query_params.get('search', None)
         if search:
             queryset = queryset.filter(
-                username__icontains=search
-            ) | queryset.filter(
-                email__icontains=search
+                Q(username__icontains=search) | Q(email__icontains=search)
             )
         
         return queryset.order_by('-date_joined')
