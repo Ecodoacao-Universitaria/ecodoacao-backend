@@ -5,17 +5,18 @@ from .views import (
     DashboardUsuarioView,
     ListarUsuariosView,
     DeletarUsuarioView,
-    AtualizarUsuarioView
+    AtualizarUsuarioView,
+    CustomTokenObtainPairView,
+    CustomTokenRefreshView
 )
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
     #url para cadastro de usuário
     path('cadastrar/', CadastroUsuarioView.as_view(), name='cadastrar'),
 
     #url para autenticação e Refresh (LOGIN)
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
 
     #url temporária para criar superusuário na produção
     path('criar-superuser-temporario/', criar_superuser_temporario, name='criar_superuser_temporario'),

@@ -46,3 +46,7 @@ dist/
 # Sistema operacional
 .DS_Store
 Thumbs.db
+
+# Test coverage reports
+htmlcov/
+.coverage

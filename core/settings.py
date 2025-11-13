@@ -3,6 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
 import os
+import sys
 
 load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 
@@ -56,6 +57,10 @@ INSTALLED_APPS = [
     "drf_spectacular",
 ]
 
+if DEBUG and 'test' not in sys.argv:
+    INSTALLED_APPS += ['debug_toolbar']
+
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -66,6 +71,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if DEBUG and 'test' not in sys.argv:
+    MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'core.urls'
 
@@ -114,6 +122,24 @@ else:
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5432'),
         }
+    }
+
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',  # Banco em memória (super rápido)
+        }
+    }
+    
+    # Desabilita migrações nos testes (usa o schema direto do model)
+    MIGRATION_MODULES = {
+        'contas': None,
+        'doacoes': None,
+        'admin': None,
+        'auth': None,
+        'contenttypes': None,
+        'sessions': None,
     }
 
 # usuário personalizado
@@ -177,6 +203,20 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'EcoDoação API',
+    'DESCRIPTION': 'API para gerenciamento de contas e doações',
+    'VERSION': '1.0.0',
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    'SERVERS': [
+        {'url': 'http://localhost:8000', 'description': 'Desenvolvimento'},
+    ],
+    
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 # Lógica para diferenciar desenvolvimento de produção
@@ -197,6 +237,28 @@ if not DEBUG:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     
 else:
-    # --- Configurações para Desenvolvimento (como já estava) ---
+    # --- Configurações para Desenvolvimento ---
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+
+
+if DEBUG:
+    import socket
+    
+    # IPs permitidos para acessar o debug toolbar
+    INTERNAL_IPS = [
+        '127.0.0.1',
+        'localhost',
+    ]
+    
+    # Para Docker: adiciona o IP do host
+    try:
+        hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+        INTERNAL_IPS += [ip[: ip.rfind(".")] + ".1" for ip in ips]
+    except:
+        pass
+    
+    # Configurações do Debug Toolbar
+    DEBUG_TOOLBAR_CONFIG = {
+        'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG,
+    }

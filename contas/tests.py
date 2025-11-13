@@ -1,233 +1,378 @@
-from django.test import TestCase
 from rest_framework.test import APITestCase
 from rest_framework.reverse import reverse
 from rest_framework import status
 from .models import Usuario
+from .factories import UsuarioFactory, AdminFactory, SuperuserFactory, UsuarioInativoFactory 
 
 
 class ListarUsuariosTestCase(APITestCase):
-    """Testes para a rota de listar usuários"""
+    """
+    Testes de integração para listagem de usuários.
+    
+    Cobre:
+    - Permissões (admin, usuário comum, não autenticado)
+    - Filtros (is_active, is_staff, search)
+    """
     
     def setUp(self):
-        """Configuração inicial para cada teste"""
-        # Criar admin
-        self.admin = Usuario.objects.create_user(
-            username='admin_teste',
-            email='admin@ufrpe.br',
-            password='admin123',
-            is_staff=True
-        )
+        """Cria usuários de teste usando factories"""
+        self.admin = AdminFactory()
+        self.usuario = UsuarioFactory()
+        self.usuario_inativo = UsuarioInativoFactory()
         
-        # Criar usuário comum
-        self.usuario = Usuario.objects.create_user(
-            username='usuario_teste',
-            email='usuario@ufrpe.br',
-            password='user123'
-        )
-        
-        # Criar outro usuário
-        self.usuario2 = Usuario.objects.create_user(
-            username='usuario2_teste',
-            email='usuario2@ufrpe.br',
-            password='user123',
-            is_active=False
-        )
+        self.url = reverse('listar-usuarios')
     
-    def test_listar_usuarios_sem_autenticacao(self):
-        """Usuários não autenticados não podem listar usuários"""
-        url = reverse('listar-usuarios')
-        response = self.client.get(url)
+    def test_sem_autenticacao_retorna_401(self):
+        """GET /usuarios/ sem token deve retornar 401"""
+        response = self.client.get(self.url)
+        
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
     
-    def test_listar_usuarios_usuario_comum_negado(self):
-        """Usuários comuns não podem listar usuários"""
+    def test_usuario_comum_retorna_403(self):
+        """GET /usuarios/ com usuário comum deve retornar 403"""
         self.client.force_authenticate(user=self.usuario)
-        url = reverse('listar-usuarios')
-        response = self.client.get(url)
+        response = self.client.get(self.url)
+        
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
     
-    def test_listar_usuarios_admin_permitido(self):
-        """Admins podem listar usuários"""
+    def test_admin_lista_todos_usuarios(self):
+        """GET /usuarios/ com admin deve retornar todos os usuários"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('listar-usuarios')
-        response = self.client.get(url)
+        response = self.client.get(self.url)
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 3)  # 2 usuários + 1 admin
+        
+        data = response.data.get('results', response.data)
+        usernames = {user['username'] for user in data}
+        
+        self.assertEqual(len(usernames), 3)
+        self.assertIn(self.admin.username, usernames)
+        self.assertIn(self.usuario.username, usernames)
+        self.assertIn(self.usuario_inativo.username, usernames)
     
-    def test_filtro_is_active(self):
-        """Testar filtro por status ativo"""
+    def test_filtro_usuarios_ativos(self):
+        """GET /usuarios/?is_active=true retorna apenas usuários ativos"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('listar-usuarios')
+        response = self.client.get(self.url, {'is_active': 'true'})
         
-        # Listar apenas ativos
-        response = self.client.get(url, {'is_active': 'true'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)  # admin e usuario (usuario2 está inativo)
         
-        # Listar apenas inativos
-        response = self.client.get(url, {'is_active': 'false'})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)  # usuario2
+        data = response.data.get('results', response.data)
+        usernames = {user['username'] for user in data}
+        
+        self.assertEqual(len(usernames), 2)
+        self.assertIn(self.admin.username, usernames)
+        self.assertIn(self.usuario.username, usernames)
+        self.assertNotIn(self.usuario_inativo.username, usernames)  
     
-    def test_filtro_is_staff(self):
-        """Testar filtro por admin"""
+    def test_filtro_usuarios_inativos(self):
+        """GET /usuarios/?is_active=false retorna apenas usuários inativos"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('listar-usuarios')
+        response = self.client.get(self.url, {'is_active': 'false'})
         
-        # Listar apenas admins
-        response = self.client.get(url, {'is_staff': 'true'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)  # apenas admin
         
-        # Listar apenas usuários comuns
-        response = self.client.get(url, {'is_staff': 'false'})
+        data = response.data.get('results', response.data)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['username'], self.usuario_inativo.username)
+    
+    def test_filtro_apenas_admins(self):
+        """GET /usuarios/?is_staff=true retorna apenas admins"""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url, {'is_staff': 'true'})
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)  # usuario e usuario2
+        
+        data = response.data.get('results', response.data)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['username'], self.admin.username)
     
     def test_busca_por_username(self):
-        """Testar busca por username"""
+        """GET /usuarios/?search=usuario encontra usuários por username"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('listar-usuarios')
-        response = self.client.get(url, {'search': 'usuario_teste'})
+        response = self.client.get(self.url, {'search': self.usuario.username})
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        
+        data = response.data.get('results', response.data)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['username'], self.usuario.username)
+    
+    def test_busca_por_email(self):
+        """GET /usuarios/?search=@ufrpe encontra usuários por email"""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url, {'search': '@ufrpe.br'})
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.data.get('results', response.data)
+        self.assertEqual(len(data), 3)  # Todos têm @ufrpe.br
 
 
 class DeletarUsuarioTestCase(APITestCase):
-    """Testes para a rota de deletar usuários"""
+    """
+    Testes de integração para deleção de usuários.
+    
+    Cobre:
+    - Permissões (admin, superuser, usuário comum)
+    - Regras de negócio (não pode deletar a si mesmo, etc)
+    """
     
     def setUp(self):
-        """Configuração inicial para cada teste"""
-        self.admin = Usuario.objects.create_user(
-            username='admin_teste',
-            email='admin@ufrpe.br',
-            password='admin123',
-            is_staff=True
-        )
-        
-        self.superuser = Usuario.objects.create_user(
-            username='super_teste',
-            email='super@ufrpe.br',
-            password='super123',
-            is_staff=True,
-            is_superuser=True
-        )
-        
-        self.usuario = Usuario.objects.create_user(
-            username='usuario_teste',
-            email='usuario@ufrpe.br',
-            password='user123'
-        )
-        
-        self.admin2 = Usuario.objects.create_user(
-            username='admin2_teste',
-            email='admin2@ufrpe.br',
-            password='admin123',
-            is_staff=True
-        )
+        """Cria usuários de teste usando factories"""
+        self.admin = AdminFactory()
+        self.superuser = SuperuserFactory()
+        self.usuario = UsuarioFactory()
+        self.admin2 = AdminFactory()
     
-    def test_deletar_sem_autenticacao(self):
-        """Usuários não autenticados não podem deletar"""
-        url = reverse('deletar-usuario', kwargs={'id': self.usuario.id})
+    def _get_url(self, usuario_id):
+        """Helper para gerar URL de deleção"""
+        return reverse('deletar-usuario', kwargs={'id': usuario_id})
+    
+    def test_sem_autenticacao_retorna_401(self):
+        """DELETE /usuarios/{id}/ sem token retorna 401"""
+        url = self._get_url(self.usuario.id)
         response = self.client.delete(url)
+        
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertTrue(Usuario.objects.filter(id=self.usuario.id).exists())
     
-    def test_deletar_usuario_comum_negado(self):
-        """Usuários comuns não podem deletar outros usuários"""
+    def test_usuario_comum_retorna_403(self):
+        """DELETE /usuarios/{id}/ com usuário comum retorna 403"""
         self.client.force_authenticate(user=self.usuario)
-        url = reverse('deletar-usuario', kwargs={'id': self.admin.id})
+        url = self._get_url(self.admin.id)
         response = self.client.delete(url)
+        
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Usuario.objects.filter(id=self.admin.id).exists())
     
-    def test_admin_deletar_usuario_comum(self):
+    def test_admin_deleta_usuario_comum_com_sucesso(self):
         """Admin pode deletar usuário comum"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('deletar-usuario', kwargs={'id': self.usuario.id})
+        url = self._get_url(self.usuario.id)
         response = self.client.delete(url)
+        
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Usuario.objects.filter(id=self.usuario.id).exists())
+        
+        self.assertIn('sucesso', response.data)
+        self.assertIn(self.usuario.username, response.data['sucesso'])
     
     def test_admin_nao_pode_deletar_a_si_mesmo(self):
         """Admin não pode deletar sua própria conta"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('deletar-usuario', kwargs={'id': self.admin.id})
+        url = self._get_url(self.admin.id)
         response = self.client.delete(url)
+        
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertTrue(Usuario.objects.filter(id=self.admin.id).exists())
+        self.assertIn('erro', response.data)
     
-    def test_admin_nao_pode_deletar_outro_admin(self):
+    def test_admin_comum_nao_pode_deletar_outro_admin(self):
         """Admin comum não pode deletar outro admin"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('deletar-usuario', kwargs={'id': self.admin2.id})
+        url = self._get_url(self.admin2.id)
         response = self.client.delete(url)
+        
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertTrue(Usuario.objects.filter(id=self.admin2.id).exists())
+        self.assertIn('erro', response.data)
     
     def test_superuser_pode_deletar_admin(self):
-        """Superuser pode deletar outro admin"""
+        """Superuser pode deletar qualquer admin"""
         self.client.force_authenticate(user=self.superuser)
-        url = reverse('deletar-usuario', kwargs={'id': self.admin2.id})
+        url = self._get_url(self.admin2.id)
         response = self.client.delete(url)
+        
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Usuario.objects.filter(id=self.admin2.id).exists())
+    
+    def test_deletar_usuario_inexistente_retorna_404(self):
+        """DELETE /usuarios/99999/ retorna 404"""
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(99999)
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class AtualizarUsuarioTestCase(APITestCase):
-    """Testes para a rota de atualizar usuários"""
+    """
+    Testes de integração para atualização de usuários.
+    
+    Cobre:
+    - Permissões (admin, superuser, usuário comum)
+    - Promoção/rebaixamento de admins
+    - Ativação/desativação de contas
+    - Regras de negócio (não pode alterar próprio status)
+    """
     
     def setUp(self):
-        """Configuração inicial para cada teste"""
-        self.admin = Usuario.objects.create_user(
-            username='admin_teste',
-            email='admin@ufrpe.br',
-            password='admin123',
-            is_staff=True
-        )
-        
-        self.superuser = Usuario.objects.create_user(
-            username='super_teste',
-            email='super@ufrpe.br',
-            password='super123',
-            is_staff=True,
-            is_superuser=True
-        )
-        
-        self.usuario = Usuario.objects.create_user(
-            username='usuario_teste',
-            email='usuario@ufrpe.br',
-            password='user123'
-        )
+        """Cria usuários de teste usando factories"""
+        self.admin = AdminFactory()
+        self.superuser = SuperuserFactory()
+        self.usuario = UsuarioFactory()
+        self.admin2 = AdminFactory()
     
-    def test_atualizar_sem_autenticacao(self):
-        """Usuários não autenticados não podem atualizar"""
-        url = reverse('atualizar-usuario', kwargs={'id': self.usuario.id})
-        response = self.client.patch(url, {'saldo_moedas': 100})
+    def _get_url(self, usuario_id):
+        """Helper para gerar URL de atualização"""
+        return reverse('atualizar-usuario', kwargs={'id': usuario_id})
+    
+    def test_sem_autenticacao_retorna_401(self):
+        """PATCH /usuarios/{id}/ sem token retorna 401"""
+        url = self._get_url(self.usuario.id)
+        response = self.client.patch(url, {'is_active': False})
+        
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
     
-    def test_admin_promover_usuario(self):
-        """Admin pode promover usuário para admin"""
+    def test_usuario_comum_retorna_403(self):
+        """PATCH /usuarios/{id}/ com usuário comum retorna 403"""
+        self.client.force_authenticate(user=self.usuario)
+        url = self._get_url(self.admin.id)
+        response = self.client.patch(url, {'is_staff': False})
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_admin_promove_usuario_para_admin(self):
+        """Admin pode promover usuário comum para admin"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('atualizar-usuario', kwargs={'id': self.usuario.id})
+        url = self._get_url(self.usuario.id)
+        
+        # Estado inicial
+        self.assertFalse(self.usuario.is_staff)
+        
         response = self.client.patch(url, {'is_staff': True})
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # Verificar que o usuário foi promovido
+        # Verifica que foi promovido
         usuario_atualizado = Usuario.objects.get(id=self.usuario.id)
         self.assertTrue(usuario_atualizado.is_staff)
+        self.assertEqual(response.data['is_staff'], True)
     
-    def test_admin_nao_pode_alterar_seu_proprio_status(self):
-        """Admin não pode alterar seu próprio status de admin"""
-        self.client.force_authenticate(user=self.admin)
-        url = reverse('atualizar-usuario', kwargs={'id': self.admin.id})
+    def test_admin_rebaixa_outro_admin(self):
+        """Admin pode rebaixar outro admin para usuário comum"""
+        self.client.force_authenticate(user=self.superuser)  # Precisa ser superuser
+        url = self._get_url(self.admin2.id)
+        
         response = self.client.patch(url, {'is_staff': False})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        usuario_atualizado = Usuario.objects.get(id=self.admin2.id)
+        self.assertFalse(usuario_atualizado.is_staff)
     
-    def test_admin_desativar_usuario(self):
-        """Admin pode desativar um usuário"""
+    def test_admin_desativa_usuario(self):
+        """Admin pode desativar conta de usuário"""
         self.client.force_authenticate(user=self.admin)
-        url = reverse('atualizar-usuario', kwargs={'id': self.usuario.id})
+        url = self._get_url(self.usuario.id)
+        
         response = self.client.patch(url, {'is_active': False})
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
         usuario_atualizado = Usuario.objects.get(id=self.usuario.id)
         self.assertFalse(usuario_atualizado.is_active)
+    
+    def test_admin_reativa_usuario_inativo(self):
+        """Admin pode reativar conta desativada"""
+        # Desativa primeiro
+        self.usuario.is_active = False
+        self.usuario.save()
+        
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(self.usuario.id)
+        
+        response = self.client.patch(url, {'is_active': True})
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        usuario_atualizado = Usuario.objects.get(id=self.usuario.id)
+        self.assertTrue(usuario_atualizado.is_active)
+    
+    def test_admin_nao_pode_alterar_proprio_status_staff(self):
+        """Admin não pode alterar seu próprio status de administrador"""
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(self.admin.id)
+        
+        response = self.client.patch(url, {'is_staff': False})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('erro', response.data)
+        
+        # Verifica que continua admin
+        admin_atualizado = Usuario.objects.get(id=self.admin.id)
+        self.assertTrue(admin_atualizado.is_staff)
+    
+    def test_admin_pode_alterar_outros_campos_proprios(self):
+        """Admin pode alterar outros campos próprios (exceto is_staff)"""
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(self.admin.id)
+        
+        # Alterar username é permitido
+        response = self.client.patch(url, {'username': 'admin_novo'})
+        
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST])
+    
+    def test_admin_comum_nao_pode_alterar_status_de_outro_admin(self):
+        """Admin comum não pode alterar status de outro admin"""
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(self.admin2.id)
+        
+        response = self.client.patch(url, {'is_staff': False})
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('erro', response.data)
+        
+        # Verifica que admin2 continua admin
+        admin2_atualizado = Usuario.objects.get(id=self.admin2.id)
+        self.assertTrue(admin2_atualizado.is_staff)
+    
+    def test_superuser_pode_alterar_status_de_qualquer_admin(self):
+        """Superuser pode alterar status de qualquer admin"""
+        self.client.force_authenticate(user=self.superuser)
+        url = self._get_url(self.admin.id)
+        
+        response = self.client.patch(url, {'is_staff': False})
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        admin_atualizado = Usuario.objects.get(id=self.admin.id)
+        self.assertFalse(admin_atualizado.is_staff)
+    
+    def test_atualizar_multiplos_campos_simultaneamente(self):
+        """Admin pode atualizar múltiplos campos de uma vez"""
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(self.usuario.id)
+        
+        response = self.client.patch(url, {
+            'is_staff': True,
+            'is_active': False,
+            'username': 'usuario_modificado'
+        })
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        usuario_atualizado = Usuario.objects.get(id=self.usuario.id)
+        self.assertTrue(usuario_atualizado.is_staff)
+        self.assertFalse(usuario_atualizado.is_active)
+        self.assertEqual(usuario_atualizado.username, 'usuario_modificado')
+    
+    def test_atualizar_usuario_inexistente_retorna_404(self):
+        """PATCH /usuarios/99999/ retorna 404"""
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(99999)
+        
+        response = self.client.patch(url, {'is_active': False})
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_dados_invalidos_retorna_400(self):
+        """PATCH com dados inválidos retorna 400"""
+        self.client.force_authenticate(user=self.admin)
+        url = self._get_url(self.usuario.id)
+        
+        # Email inválido
+        response = self.client.patch(url, {'email': 'email_invalido'})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

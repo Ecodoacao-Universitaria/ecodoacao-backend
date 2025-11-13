@@ -1,5 +1,10 @@
 from django.urls import path
-from .views import AdminDoacoesPendentesView, CriarDoacaoView, AdminAtualizarDoacaoView, HistoricoDoacoesView
+from .views import (
+    AdminDoacoesPendentesView,
+    CriarDoacaoView, 
+    AdminAtualizarDoacaoView, 
+    HistoricoDoacoesView 
+)
 
 urlpatterns = [
     # Rota para Listar Doações Pendentes (Admin)

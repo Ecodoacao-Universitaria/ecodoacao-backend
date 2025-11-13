@@ -4,7 +4,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from .serializers import CadastroSerializer, DashboardUsuarioSerializer, UsuarioSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from .models import Usuario
 import os
 
@@ -16,18 +20,126 @@ class IsAdmin(IsAuthenticated):
         return is_authenticated and request.user.is_staff
 
 
-# Create your views here.
+@extend_schema(
+    tags=['Autenticação'],
+    summary='Obter token JWT',
+    description='Retorna um par de tokens (access e refresh) usando usuario e senha',
+    request=TokenObtainPairSerializer,
+    responses={
+        200: {
+            "type": "object",
+            "properties": {
+                "access": {"type": "string", "description": "Token de acesso (expira em 5min)"},
+                "refresh": {"type": "string", "description": "Token de refresh (expira em 1 dia)"}
+            }
+        },
+        401: {"description": "Credenciais inválidas"}
+    },
+    examples=[
+        OpenApiExample(
+            'Login exemplo',
+            value={
+                "username": "usuario_teste",
+                "password": "senha123"
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            'Resposta sucesso',
+            value={
+                "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            'Resposta falha',
+            value={  
+                "detail": "No active account found with the given credentials"
+            },
+            response_only=True,
+            status_codes=['401'],
+        ),
+    ]
+)
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    View personalizada para obter tokens JWT.
+    Sobrescreve a view padrão para adicionar documentação do Swagger.
+    """
+    pass  # A lógica continua a mesma da classe pai
 
-#cadastro de usuário
+
+@extend_schema(
+    tags=['Autenticação'],
+    summary='Renovar token JWT',
+    description='Retorna um novo access token usando um refresh token válido',
+    request=TokenRefreshSerializer,
+    responses={
+        200: {
+            "type": "object",
+            "properties": {
+                "access": {"type": "string", "description": "Novo token de acesso"}
+            }
+        },
+        401: {"description": "Refresh token inválido ou expirado"}
+    },
+    examples=[
+        OpenApiExample(
+            'Refresh exemplo',
+            value={
+                "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            'Resposta sucesso',
+            value={
+                "access": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+            },
+            response_only=True,
+        ),
+    ]
+)
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    View personalizada para renovar tokens JWT.
+    Sobrescreve a view padrão para adicionar documentação do Swagger.
+    """
+    pass
+
+
+@extend_schema(
+    tags=['Contas'],
+    summary='Cadastrar novo usuário',
+    description='Cria um novo usuário no sistema',
+    request=CadastroSerializer,
+    responses={
+        201: UsuarioSerializer,
+        400: OpenApiTypes.OBJECT
+    }
+)
+# Cadastro de usuário
 class CadastroUsuarioView(generics.CreateAPIView):
     queryset = Usuario.objects.all()
     serializer_class = CadastroSerializer
-    permission_classes = [AllowAny] #permite que qualquer pessoa possa acessar essa view para se cadastrar
+    permission_classes = [AllowAny] 
 
 
-
+@extend_schema(    
+    tags=['Contas'],
+    summary='Criar superusuário temporário',
+    description='Cria um superusuário temporário usando variáveis de ambiente (apenas para ambientes de desenvolvimento)',
+    responses={
+        201: OpenApiTypes.OBJECT,
+        200: OpenApiTypes.OBJECT,
+        400: OpenApiTypes.OBJECT,
+        500: OpenApiTypes.OBJECT
+    }
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
+# URL temporária para criar superusuário na produção
 def criar_superuser_temporario(request):
   
     try:
@@ -72,17 +184,70 @@ def criar_superuser_temporario(request):
         )
     
 
-
+@extend_schema(
+    tags=['Contas'],
+    summary='Dashboard do usuário',
+    description='Retorna informações do usuário logado (dashboard)',
+    responses={
+        200: DashboardUsuarioSerializer,
+        401: OpenApiTypes.OBJECT
+    }
+)
+# Dashboard do usuário
 class DashboardUsuarioView(generics.RetrieveAPIView):
     queryset = Usuario.objects.all()
     serializer_class = DashboardUsuarioSerializer
-    permission_classes = [IsAuthenticated]  # Apenas usuários autenticados podem acessar esta view
+    permission_classes = [IsAuthenticated]  
 
     def get_object(self):
-        # Retorna o usuário logado
         return self.request.user
 
 
+@extend_schema(
+    tags=['Contas'],
+    summary='Listar todos os usuários',
+    description='Lista todos os usuários do sistema com filtros opcionais (apenas para administradores)',
+    parameters=[
+        OpenApiParameter(
+            name='is_active',
+            type=OpenApiTypes.BOOL,
+            location=OpenApiParameter.QUERY,
+            description='Filtrar por usuários ativos (true) ou inativos (false)',
+            required=False,
+            examples=[
+                OpenApiExample('Usuários ativos', value='true'),
+                OpenApiExample('Usuários inativos', value='false'),
+            ]
+        ),
+        OpenApiParameter(
+            name='is_staff',
+            type=OpenApiTypes.BOOL,
+            location=OpenApiParameter.QUERY,
+            description='Filtrar por administradores (true) ou usuários comuns (false)',
+            required=False,
+            examples=[
+                OpenApiExample('Apenas admins', value='true'),
+                OpenApiExample('Apenas usuários', value='false'),
+            ]
+        ),
+        OpenApiParameter(
+            name='search',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            description='Buscar por username ou email (busca parcial)',
+            required=False,
+            examples=[
+                OpenApiExample('Busca por nome', value='joao'),
+                OpenApiExample('Busca por email', value='@gmail.com'),
+            ]
+        ),
+    ],
+    responses={
+        200: UsuarioSerializer(many=True),
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão de administrador"}
+    }
+)
 # Lista todos os usuários (apenas admin)
 class ListarUsuariosView(generics.ListAPIView):
     queryset = Usuario.objects.all()
@@ -116,7 +281,16 @@ class ListarUsuariosView(generics.ListAPIView):
         
         return queryset.order_by('-date_joined')
 
-
+@extend_schema(
+    tags=['Contas'],
+    summary='Deletar usuário',
+    description='Deleta um usuário específico pelo ID (apenas para administradores)',
+    responses={
+        204: OpenApiTypes.OBJECT,
+        400: OpenApiTypes.OBJECT,
+        403: OpenApiTypes.OBJECT
+    }
+)
 # Deletar usuário (apenas admin)
 class DeletarUsuarioView(generics.DestroyAPIView):
     queryset = Usuario.objects.all()
@@ -149,7 +323,16 @@ class DeletarUsuarioView(generics.DestroyAPIView):
             status=status.HTTP_204_NO_CONTENT
         )
 
-
+@extend_schema(
+    tags=['Contas'],
+    summary='Atualizar usuário',
+    description='Atualiza informações de um usuário específico pelo ID (apenas para administradores)',
+    responses={
+        200: UsuarioSerializer,
+        400: OpenApiTypes.OBJECT,
+        403: OpenApiTypes.OBJECT
+    }   
+)
 # Atualizar usuário (promover/rebaixar ou desativar) - apenas admin
 class AtualizarUsuarioView(generics.UpdateAPIView):
     queryset = Usuario.objects.all()

@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from django.conf import settings 
 
 # View opcional — só um índice simples
 class ApiRootView(APIView):
@@ -38,3 +39,4 @@ urlpatterns = [
 # Configuração para servir arquivos de mídia durante o desenvolvimento
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += path('__debug__/', include('debug_toolbar.urls')),
