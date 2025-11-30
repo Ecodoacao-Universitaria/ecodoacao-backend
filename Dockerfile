@@ -15,6 +15,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
+# Only create /app/staticfiles here; /app/media is not needed when using Cloudinary as the storage backend.
+RUN mkdir -p /app/staticfiles
+
 EXPOSE 8000
 
 CMD ["sh", "-c", "\

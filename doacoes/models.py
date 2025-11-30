@@ -1,6 +1,7 @@
-from datetime import timezone
 from django.db import models
+from django.utils import timezone
 from contas.models import Usuario
+from cloudinary.models import CloudinaryField
 
 class TipoDoacao(models.Model):
 
@@ -24,11 +25,18 @@ class Doacao(models.Model):
 
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDENTE')
 
-    evidencia_foto = models.ImageField(upload_to='evidencias/', blank=True, null=True)
+    evidencia_foto = CloudinaryField(
+        'evidencia',
+        folder='evidencias',
+        transformation={
+            'quality': 'auto:eco',
+            'fetch_format': 'auto',
+        }
+    )
 
     motivo_recusa = models.TextField(blank=True, null=True)
     data_submissao = models.DateTimeField(auto_now_add=True)
-    descricao = models.TextField(blank=True, default='')
+    descricao = models.TextField(blank=True, null=True, max_length=500)
 
     validado_por = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='doacoes_validadas')
     data_validacao = models.DateTimeField(null=True, blank=True)

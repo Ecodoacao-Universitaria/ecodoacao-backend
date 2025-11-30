@@ -2,6 +2,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os, sys
 import dj_database_url
+import cloudinary
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,14 +15,8 @@ if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = 'django-insecure-chave-dev-local-mude-isso-em-producao-' + 'k' * 20
         print("⚠️  AVISO: Usando SECRET_KEY padrão de desenvolvimento")
-        print("    Para produção, defina SECRET_KEY nas variáveis de ambiente")
-        print("    Gere uma com: python manage.py shell -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\"")
     else:
-        raise ValueError(
-            "SECRET_KEY deve ser definida em modo de produção!\n"
-            "Gere uma com:\n"
-            "  python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
-        )
+        raise ValueError("SECRET_KEY deve ser definida em produção!")
 
 ALLOWED_HOSTS_STRING = os.getenv('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = ALLOWED_HOSTS_STRING.split(',') if ALLOWED_HOSTS_STRING else []
@@ -32,12 +28,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary_storage',
+    
+    # Third party
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
+    'drf_spectacular',
+    'cloudinary',
+    
+    # Apps
     'contas',
     'doacoes',
-    'storages',
-    'drf_spectacular',
 ]
 
 if DEBUG and 'test' not in sys.argv:
@@ -77,12 +79,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database: usa DATABASE_URL em produção, DB_* em dev
+# Database
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-    }
+    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
 else:
     DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.sqlite3')
     if 'postgresql' in DB_ENGINE:
@@ -97,28 +97,10 @@ else:
             }
         }
     else:
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
-            }
-        }
+        DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
-if 'test' in sys.argv or 'test_coverage' in sys.argv:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
-        }
-    }
-    MIGRATION_MODULES = {
-        'contas': None,
-        'doacoes': None,
-        'admin': None,
-        'auth': None,
-        'contenttypes': None,
-        'sessions': None,
-    }
+if 'test' in sys.argv:
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}}
 
 AUTH_USER_MODEL = 'contas.Usuario'
 
@@ -132,27 +114,35 @@ TIME_ZONE = 'America/Recife'
 USE_I18N = True
 USE_TZ = True
 
+# Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Cloudinary (única fonte de mídia)
+CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
+if CLOUDINARY_URL:
+    cloudinary.config(cloudinary_url=CLOUDINARY_URL)
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    MEDIA_URL = '/media/'
+else:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# CORS
 def split_env_list(name):
     raw = os.getenv(name, '')
     return [item.strip() for item in raw.split(',') if item.strip()]
 
 CORS_ALLOWED_ORIGINS = split_env_list('CORS_ALLOWED_ORIGINS')
-
 if DEBUG and not CORS_ALLOWED_ORIGINS:
-    CORS_ALLOWED_ORIGINS = [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-    ]
+    CORS_ALLOWED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
 
-CORS_ALLOW_CREDENTIALS = True  
+CORS_ALLOW_CREDENTIALS = True
+
 CSRF_TRUSTED_ORIGINS = split_env_list('CSRF_TRUSTED_ORIGINS')
 if DEBUG and not CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS = [
@@ -160,21 +150,17 @@ if DEBUG and not CSRF_TRUSTED_ORIGINS:
         'http://127.0.0.1:5173',
         'https://ecodoacao-backend-wgqq.onrender.com',
     ]
-    
+
+# REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
-    # corrige duplicidade e aponta para o arquivo certo
     'EXCEPTION_HANDLER': 'core.exceptions.drf_exception_handler',
 }
 
-CSRF_TRUSTED_ORIGINS_STRING = os.getenv('CSRF_TRUSTED_ORIGINS', '')
-CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGINS_STRING.split(',') if CSRF_TRUSTED_ORIGINS_STRING else []
-
+# Spectacular
 SPECTACULAR_SETTINGS = {
     'TITLE': 'EcoDoação API',
     'DESCRIPTION': 'API para gerenciamento de contas e doações',
@@ -184,21 +170,9 @@ SPECTACULAR_SETTINGS = {
         {'url': 'http://localhost:8000', 'description': 'Desenvolvimento'},
         {'url': os.getenv('PUBLIC_SERVER_URL', ''), 'description': 'Produção'},
     ],
-    'COMPONENT_SPLIT_REQUEST': True,
 }
 
-if not DEBUG:
-    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'sa-east-1')
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_DEFAULT_ACL = 'public-read'
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-else:
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-
+# Debug Toolbar
 if DEBUG:
     import socket
     INTERNAL_IPS = ['127.0.0.1', 'localhost']
@@ -207,6 +181,4 @@ if DEBUG:
         INTERNAL_IPS += [ip[: ip.rfind(".")] + ".1" for ip in ips]
     except:
         pass
-    DEBUG_TOOLBAR_CONFIG = {
-        'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG,
-    }
+    DEBUG_TOOLBAR_CONFIG = {'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG}
