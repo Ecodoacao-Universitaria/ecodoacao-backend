@@ -5,8 +5,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from django.utils import timezone
-
-from .models import Doacao, Badge, UsuarioBadge, TipoDoacao
+from .models import Doacao, Badge, UsuarioBadge
 from .serializers import (
     DoacaoSerializer, 
     CriarDoacaoSerializer, 
@@ -103,40 +102,38 @@ class AdminAtualizarDoacaoView(generics.UpdateAPIView):
 @extend_schema(tags=['Badges'], summary='Listar badges disponíveis')
 class ListarBadgesDisponiveisView(generics.ListAPIView):
     serializer_class = BadgeSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = CustomPagination
+    permission_classes = [IsAdminUser]
+    http_method_names = ['get', 'post', 'patch', 'delete']  
 
-    def get_queryset(self):
-        usuario = self.request.user
-        badges_usuario = UsuarioBadge.objects.filter(usuario=usuario).values_list('badge_id', flat=True)
-        return Badge.objects.filter(ativo=True, tipo='COMPRA').exclude(id__in=badges_usuario)
+@extend_schema(tags=['Badges'])
+class BadgeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Badge.objects.filter(ativo=True)
+    serializer_class = BadgeSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
+    @action(detail=False, methods=['get'], url_path='minhas-badges')
+    def minhas_badges(self, request):
+        qs = BadgeService.listar_badges_usuario(request.user)
+        ser = UsuarioBadgeSerializer(qs, many=True)
+        return Response(ser.data)
 
-@extend_schema(tags=['Badges'], summary='Listar minhas badges')
-class ListarMinhasBadgesView(generics.ListAPIView):
-    serializer_class = UsuarioBadgeSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = CustomPagination
+    @action(detail=False, methods=['get'], url_path='disponiveis')
+    def disponiveis(self, request):
+        qs = BadgeService.listar_badges_disponiveis(request.user)
+        ser = BadgeSerializer(qs, many=True)
+        return Response(ser.data)
 
-    def get_queryset(self):
-        return UsuarioBadge.objects.filter(usuario=self.request.user).select_related('badge').order_by('-data_conquista')
+    @action(detail=False, methods=['post'], url_path='comprar')
+    def comprar(self, request):
+        ser = ComprarBadgeSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        resultado = BadgeService.comprar_badge(request.user, ser.validated_data['badge_id'])
+        status_code = resultado.get('status', (status.HTTP_200_OK if resultado.get('sucesso') else status.HTTP_400_BAD_REQUEST))
+        return Response(resultado, status=status_code)
+        
+class DashboardUsuarioView(generics.RetrieveAPIView):
+    serializer_class = DashboardUsuarioSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
-
-@extend_schema(tags=['Badges'], summary='Comprar badge')
-@api_view(['POST'])
-def comprar_badge(request):
-    serializer = ComprarBadgeSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    
-    badge_id = serializer.validated_data['badge_id']
-    resultado = processar_compra_badge(usuario=request.user, badge_id=badge_id)
-    
-    return Response(resultado, status=status.HTTP_200_OK if resultado['sucesso'] else status.HTTP_400_BAD_REQUEST)
+    def get_object(self):
+        return self.request.user
