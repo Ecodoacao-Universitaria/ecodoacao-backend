@@ -409,6 +409,41 @@ class BadgeListarTestCase(APITestCase):
         self.assertEqual(len(response.data), 2)
         for badge in response.data:
             self.assertEqual(badge['tipo'], 'COMPRA')
+    
+    def test_badge_serializer_includes_tipo_display(self):
+        """GET /badges/ inclui campo tipo_display com nome legível do tipo"""
+        self.client.force_authenticate(user=self.usuario)
+        
+        url = reverse('badge-list')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.data.get('results', response.data)
+        
+        # Verifica que todos os badges têm tipo_display
+        for badge in data:
+            self.assertIn('tipo_display', badge)
+            # Verifica que tipo_display corresponde ao tipo
+            if badge['tipo'] == 'CONQUISTA':
+                self.assertEqual(badge['tipo_display'], 'Conquista Automática')
+            elif badge['tipo'] == 'COMPRA':
+                self.assertEqual(badge['tipo_display'], 'Disponível para Compra')
+    
+    def test_badge_serializer_includes_icone_url(self):
+        """GET /badges/ inclui campo icone_url"""
+        self.client.force_authenticate(user=self.usuario)
+        
+        url = reverse('badge-list')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.data.get('results', response.data)
+        
+        # Verifica que todos os badges têm icone_url (pode ser None ou URL)
+        for badge in data:
+            self.assertIn('icone_url', badge)
 
 
 class BadgeComprarTestCase(APITestCase):

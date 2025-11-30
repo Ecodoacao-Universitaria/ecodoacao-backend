@@ -104,7 +104,8 @@ class ValidarDoacaoSerializer(serializers.Serializer):
         return data
 
 class BadgeSerializer(serializers.ModelSerializer):
-    icone = serializers.SerializerMethodField()
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    icone_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Badge
@@ -112,8 +113,9 @@ class BadgeSerializer(serializers.ModelSerializer):
             'id', 
             'nome', 
             'descricao', 
-            'icone',
+            'icone_url',
             'tipo',
+            'tipo_display',
             'custo_moedas',
             'criterio_doacoes',
             'criterio_moedas',
@@ -121,13 +123,12 @@ class BadgeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
 
-    def get_icone(self, obj: Badge) -> Optional[str]:
+    def get_icone_url(self, obj: Badge) -> Optional[str]:
         """Retorna a URL completa do ícone do Cloudinary"""
         if not obj.icone:
             return None
         
         try:
-            # Cloudinary já aplica as transformações definidas no modelo
             return obj.icone.url
         except (AttributeError, ValueError):
             return None
