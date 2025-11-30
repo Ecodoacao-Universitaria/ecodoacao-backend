@@ -1,7 +1,6 @@
-from datetime import timezone
 from django.db import models
+from django.utils import timezone
 from contas.models import Usuario
-from django.contrib.auth import get_user_model
 from cloudinary.models import CloudinaryField
 
 class TipoDoacao(models.Model):

@@ -1,10 +1,9 @@
-from rest_framework import generics, status, viewsets, permissions
-from rest_framework.decorators import api_view, action
+from rest_framework import generics, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
-from django.utils import timezone
 
 from .models import Doacao, Badge, UsuarioBadge, TipoDoacao
 from .serializers import (
@@ -17,9 +16,9 @@ from .serializers import (
     DashboardUsuarioSerializer,
     TipoDoacaoSerializer,
 )
-from .services import processar_validacao_doacao, processar_compra_badge
+from .services import BadgeService
 
-class CustomPagination(generics.pagination.PageNumberPagination):
+class CustomPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 50
@@ -30,7 +29,7 @@ class CustomPagination(generics.pagination.PageNumberPagination):
 
 @extend_schema(tags=['Doações'], summary='Listar tipos de doação')
 class ListarTiposDoacaoView(generics.ListAPIView):
-    queryset = TipoDoacao.objects.filter(ativo=True)
+    queryset = TipoDoacao.objects.all().order_by('nome')
     serializer_class = TipoDoacaoSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = CustomPagination
@@ -103,18 +102,34 @@ class AdminAtualizarDoacaoView(generics.UpdateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        resultado = processar_validacao_doacao(
-            doacao=doacao,
-            novo_status=serializer.validated_data['status'],
-            validado_por=request.user,
-            motivo_recusa=serializer.validated_data.get('motivo_recusa')
-        )
+        novo_status = serializer.validated_data['status']
+        motivo_recusa = serializer.validated_data.get('motivo_recusa')
+
+        if novo_status == 'APROVADA':
+            doacao.aprovar(request.user)
+            BadgeService.premiar_doacao_aprovada(doacao)
+            resultado = {'sucesso': True, 'mensagem': 'Doação aprovada com sucesso.'}
+        else:
+            doacao.recusar(request.user, motivo_recusa)
+            resultado = {'sucesso': True, 'mensagem': 'Doação recusada.'}
 
         return Response(resultado, status=status.HTTP_200_OK)
 
 # ============================================================================
 # BADGES
 # ============================================================================
+
+@extend_schema(tags=['Admin'])
+class AdminBadgeViewSet(viewsets.ModelViewSet):
+    queryset = Badge.objects.all()
+    serializer_class = BadgeSerializer
+    permission_classes = [IsAdminUser]
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 @extend_schema(tags=['Badges'])
 class BadgeViewSet(viewsets.ReadOnlyModelViewSet):
@@ -140,10 +155,6 @@ class BadgeViewSet(viewsets.ReadOnlyModelViewSet):
     def disponiveis(self, request):
         badges_usuario = UsuarioBadge.objects.filter(usuario=request.user).values_list('badge_id', flat=True)
         qs = Badge.objects.filter(ativo=True, tipo='COMPRA').exclude(id__in=badges_usuario)
-        page = self.paginate_queryset(qs)
-        if page is not None:
-            ser = BadgeSerializer(page, many=True, context={'request': request})
-            return self.get_paginated_response(ser.data)
         ser = BadgeSerializer(qs, many=True, context={'request': request})
         return Response(ser.data)
 
@@ -160,8 +171,8 @@ class BadgeViewSet(viewsets.ReadOnlyModelViewSet):
     def comprar(self, request):
         ser = ComprarBadgeSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        resultado = processar_compra_badge(request.user, ser.validated_data['badge_id'])
-        status_code = status.HTTP_200_OK if resultado.get('sucesso') else status.HTTP_400_BAD_REQUEST
+        resultado = BadgeService.comprar_badge(request.user, ser.validated_data['badge_id'])
+        status_code = resultado.pop('status', status.HTTP_200_OK)
         return Response(resultado, status=status_code)
 
 # ============================================================================

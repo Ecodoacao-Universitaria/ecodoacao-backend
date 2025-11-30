@@ -51,10 +51,25 @@ class DoacaoSerializer(serializers.ModelSerializer):
 
 class CriarDoacaoSerializer(serializers.ModelSerializer):
     tipo_doacao = serializers.PrimaryKeyRelatedField(queryset=TipoDoacao.objects.all())
+    evidencia_foto = serializers.ImageField(required=True)
+    descricao = serializers.CharField(required=False, allow_blank=True, min_length=10, max_length=240)
 
     class Meta:
         model = Doacao
         fields = ['tipo_doacao', 'descricao', 'evidencia_foto']
+
+    def validate_evidencia_foto(self, value):
+        # Validate file size (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        if value.size > max_size:
+            raise serializers.ValidationError('O tamanho da imagem não pode exceder 5MB.')
+        
+        # Validate file format
+        allowed_formats = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if value.content_type not in allowed_formats:
+            raise serializers.ValidationError('Formato de imagem não suportado. Use JPEG, PNG, GIF ou WebP.')
+        
+        return value
 
     def create(self, validated_data):
         validated_data['doador'] = self.context['request'].user
@@ -94,7 +109,7 @@ class BadgeSerializer(serializers.ModelSerializer):
         return obj.icone.url
 
 class UsuarioBadgeSerializer(serializers.ModelSerializer):
-    badge = BadgeSerializer()
+    badge = BadgeSerializer(read_only=True)
     usuario = serializers.CharField(source='usuario.username', read_only=True)
 
     class Meta:
@@ -109,7 +124,7 @@ class DashboardUsuarioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'saldo_moedas', 'badges_conquistados']
+        fields = ['id', 'username', 'email', 'saldo_moedas', 'badges_conquistados']
 
     def get_badges_conquistados(self, obj):
         badges = UsuarioBadge.objects.filter(usuario=obj).select_related('badge')
