@@ -140,10 +140,27 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOWED_ORIGINS_STRING = os.getenv('CORS_ALLOWED_ORIGINS', '')
-CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS_STRING.split(',') if CORS_ALLOWED_ORIGINS_STRING else []
-CORS_ALLOW_CREDENTIALS = True
+def split_env_list(name):
+    raw = os.getenv(name, '')
+    return [item.strip() for item in raw.split(',') if item.strip()]
 
+CORS_ALLOWED_ORIGINS = split_env_list('CORS_ALLOWED_ORIGINS')
+
+if DEBUG and not CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+    ]
+
+CORS_ALLOW_CREDENTIALS = True  
+CSRF_TRUSTED_ORIGINS = split_env_list('CSRF_TRUSTED_ORIGINS')
+if DEBUG and not CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'https://ecodoacao-backend-wgqq.onrender.com',
+    ]
+    
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
