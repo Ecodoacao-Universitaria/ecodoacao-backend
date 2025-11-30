@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from django.utils import timezone
-from .models import Doacao, Badge, UsuarioBadge
+from .models import Doacao, Badge, TipoDoacao
 from .serializers import (
     DoacaoSerializer, 
     CriarDoacaoSerializer, 
@@ -12,7 +12,8 @@ from .serializers import (
     BadgeSerializer,
     UsuarioBadgeSerializer,
     ComprarBadgeSerializer,
-    DashboardUsuarioSerializer
+    DashboardUsuarioSerializer,
+    TipoDoacaoSerializer,
 )
 from .services import BadgeService
 
@@ -150,6 +151,13 @@ class BadgeViewSet(viewsets.ReadOnlyModelViewSet):
         status_code = resultado.get('status', (status.HTTP_200_OK if resultado.get('sucesso') else status.HTTP_400_BAD_REQUEST))
         return Response(resultado, status=status_code)
         
+@extend_schema(tags=['Doações'], summary='Listar tipos de doação')
+class ListarTiposDoacaoView(generics.ListAPIView):
+    queryset = TipoDoacao.objects.all().order_by('nome')
+    serializer_class = TipoDoacaoSerializer
+    permission_classes = [IsAuthenticated]
+
+@extend_schema(tags=['Usuário'], summary='Dashboard do usuário')
 class DashboardUsuarioView(generics.RetrieveAPIView):
     serializer_class = DashboardUsuarioSerializer
     permission_classes = [permissions.IsAuthenticated]

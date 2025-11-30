@@ -5,7 +5,8 @@ from .views import (
     CriarDoacaoView, 
     AdminAtualizarDoacaoView, 
     HistoricoDoacoesView,
-    AdminBadgeViewSet
+    AdminBadgeViewSet,
+    ListarTiposDoacaoView
 )
 from . import views
 
@@ -28,6 +29,9 @@ urlpatterns = [
 
     # Rota para o Histórico do Usuário
     path('historico/', HistoricoDoacoesView.as_view(), name='doacao_historico'),
+
+    # Tipos de Doação
+    path('tipos/', ListarTiposDoacaoView.as_view(), name='doacao_tipos'),
 
     path('', include(router.urls)),
     path('', include(admin_router.urls))

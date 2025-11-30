@@ -476,3 +476,59 @@ class BadgeComprarTestCase(APITestCase):
         response = self.client.post(url, {'badge_id': 99999})
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================================================
+# TESTES DE LISTAGEM DE TIPOS DE DOAÇÃO
+# ============================================================================
+
+class ListarTiposDoacaoTestCase(APITestCase):
+    """
+    Testes para listagem de tipos de doação.
+    
+    Cobre:
+    - Autenticação
+    - Listagem de tipos de doação
+    - Ordenação por nome
+    """
+    
+    def setUp(self):
+        self.usuario = UsuarioFactory()
+        
+        # Criar tipos de doação em ordem aleatória para testar ordenação
+        self.tipo_papel = TipoDoacaoFactory(nome='Papel', moedas_atribuidas=50)
+        self.tipo_aluminio = TipoDoacaoFactory(nome='Alumínio', moedas_atribuidas=80)
+        self.tipo_vidro = TipoDoacaoFactory(nome='Vidro', moedas_atribuidas=60)
+        
+        self.url = reverse('doacao_tipos')
+    
+    def test_sem_autenticacao_retorna_401(self):
+        """GET /doacoes/tipos/ sem token retorna 401"""
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_listar_tipos_doacao_com_sucesso(self):
+        """Usuário autenticado pode listar tipos de doação"""
+        self.client.force_authenticate(user=self.usuario)
+        
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.data.get('results', response.data)
+        self.assertEqual(len(data), 3)
+    
+    def test_tipos_doacao_ordenados_por_nome(self):
+        """Tipos de doação são retornados ordenados por nome"""
+        self.client.force_authenticate(user=self.usuario)
+        
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.data.get('results', response.data)
+        nomes = [tipo['nome'] for tipo in data]
+        
+        # Verifica que estão em ordem alfabética
+        self.assertEqual(nomes, sorted(nomes))
