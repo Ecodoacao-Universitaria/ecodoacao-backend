@@ -52,11 +52,17 @@ class DoacaoSerializer(serializers.ModelSerializer):
 class CriarDoacaoSerializer(serializers.ModelSerializer):
     tipo_doacao = serializers.PrimaryKeyRelatedField(queryset=TipoDoacao.objects.all())
     evidencia_foto = serializers.ImageField(required=True)
-    descricao = serializers.CharField(required=False, allow_blank=True, min_length=10, max_length=240)
+    descricao = serializers.CharField(required=False, allow_blank=True, max_length=240)
 
     class Meta:
         model = Doacao
         fields = ['tipo_doacao', 'descricao', 'evidencia_foto']
+
+    def validate_descricao(self, value):
+        # Only validate min_length if a non-blank value is provided
+        if value and len(value) < 10:
+            raise serializers.ValidationError('A descrição deve ter pelo menos 10 caracteres.')
+        return value
 
     def validate_evidencia_foto(self, value):
         # Validate file size (max 5MB)
