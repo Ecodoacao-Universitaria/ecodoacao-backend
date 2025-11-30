@@ -1,24 +1,25 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
-from .serializers import CadastroSerializer, DashboardUsuarioSerializer, UsuarioSerializer
+from .serializers import CadastroSerializer, DashboardUsuarioSerializer, UsuarioSerializer, MeuPerfilSerializer, AlterarSenhaSerializer, EcoTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from .models import Usuario
 import os
 
+Usuario = get_user_model()
 
 # Classe para verificar se o usuário é admin
 class IsAdmin(IsAuthenticated):
     def has_permission(self, request, view):
         is_authenticated = super().has_permission(request, view)
         return is_authenticated and request.user.is_staff
-
 
 @extend_schema(
     tags=['Autenticação'],
@@ -67,8 +68,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     View personalizada para obter tokens JWT.
     Sobrescreve a view padrão para adicionar documentação do Swagger.
     """
+    serializer_class = EcoTokenObtainPairSerializer
     pass  # A lógica continua a mesma da classe pai
-
 
 @extend_schema(
     tags=['Autenticação'],
@@ -108,7 +109,6 @@ class CustomTokenRefreshView(TokenRefreshView):
     """
     pass
 
-
 @extend_schema(
     tags=['Contas'],
     summary='Cadastrar novo usuário',
@@ -124,7 +124,6 @@ class CadastroUsuarioView(generics.CreateAPIView):
     queryset = Usuario.objects.all()
     serializer_class = CadastroSerializer
     permission_classes = [AllowAny] 
-
 
 @extend_schema(    
     tags=['Contas'],
@@ -183,7 +182,6 @@ def criar_superuser_temporario(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-
 @extend_schema(
     tags=['Contas'],
     summary='Dashboard do usuário',
@@ -201,7 +199,6 @@ class DashboardUsuarioView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
-
 
 @extend_schema(
     tags=['Contas'],
@@ -359,3 +356,41 @@ class AtualizarUsuarioView(generics.UpdateAPIView):
             )
         
         return super().patch(request, *args, **kwargs)
+    
+@extend_schema(
+    tags=['Contas'],
+    summary='Meu perfil',
+    description='Recupera ou atualiza as informações do perfil do usuário autenticado',
+    responses={
+        200: MeuPerfilSerializer,
+        400: OpenApiTypes.OBJECT,
+        401: OpenApiTypes.OBJECT
+    }
+)
+class MeuPerfilView(generics.RetrieveUpdateAPIView):
+    serializer_class = MeuPerfilSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        # garante que sempre seja o próprio usuário
+        return self.request.user
+
+@extend_schema(
+    tags=['Contas'],
+    summary='Alterar senha',
+    description='Permite que o usuário autenticado altere sua senha fornecendo a senha atual e a nova senha',
+    request=AlterarSenhaSerializer,
+    responses={
+        200: OpenApiTypes.OBJECT,
+        400: OpenApiTypes.OBJECT,
+        401: OpenApiTypes.OBJECT
+    }
+)
+class AlterarSenhaView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = AlterarSenhaSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Senha alterada com sucesso."}, status=status.HTTP_200_OK)

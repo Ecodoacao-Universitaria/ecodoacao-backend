@@ -2,10 +2,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import TipoDoacao, Doacao, Badge, UsuarioBadge
 
-
 @admin.register(TipoDoacao)
 class TipoDoacaoAdmin(admin.ModelAdmin):
-    """Administração de Tipos de Doação"""
     list_display = ['nome', 'moedas_atribuidas']
     search_fields = ['nome']
     ordering = ['nome']
@@ -13,43 +11,67 @@ class TipoDoacaoAdmin(admin.ModelAdmin):
 
 @admin.register(Doacao)
 class DoacaoAdmin(admin.ModelAdmin):
-    """Administração de Doações"""
     list_display = ['id', 'doador', 'tipo_doacao', 'status', 'data_submissao', 'validado_por']
-    list_filter = ['status', 'data_submissao', 'tipo_doacao']
+    list_filter = ['status', 'tipo_doacao', 'data_submissao']
     search_fields = ['doador__username', 'doador__email']
     readonly_fields = ['data_submissao', 'data_validacao']
     ordering = ['-data_submissao']
     
     fieldsets = (
         ('Informações da Doação', {
-            'fields': ('doador', 'tipo_doacao', 'evidencia_foto', 'data_submissao')
+            'fields': ('doador', 'tipo_doacao', 'descricao', 'evidencia_foto', 'status')
         }),
         ('Validação', {
-            'fields': ('status', 'validado_por', 'data_validacao', 'motivo_recusa')
+            'fields': ('validado_por', 'data_validacao', 'motivo_recusa')
+        }),
+        ('Datas', {
+            'fields': ('data_submissao',)
         }),
     )
 
 
 @admin.register(Badge)
 class BadgeAdmin(admin.ModelAdmin):
-    """Administração de Badges"""
-    list_display = ['nome', 'custo_moedas', 'imagem_preview']
+    list_display = ['nome', 'tipo', 'icone_preview', 'custo_moedas', 'criterio_doacoes', 'ativo']
+    list_filter = ['tipo', 'ativo']
     search_fields = ['nome', 'descricao']
-    ordering = ['nome']
+    ordering = ['tipo', 'custo_moedas']
     
-    def imagem_preview(self, obj):
-        """Exibe preview da imagem do badge"""
-        if obj.imagem_url:
-            return format_html('<img src="{}" width="50" height="50" />', obj.imagem_url)
-        return '-'
-    imagem_preview.short_description = 'Preview'
+    fieldsets = (
+        ('Informações Básicas', {
+            'fields': ('nome', 'descricao', 'icone', 'tipo', 'ativo')
+        }),
+        ('Critérios de Conquista', {
+            'fields': ('criterio_doacoes', 'criterio_moedas'),
+            'description': 'Deixe em branco para badges de compra'
+        }),
+        ('Compra', {
+            'fields': ('custo_moedas',),
+            'description': 'Defina 0 para badges de conquista automática'
+        }),
+    )
+    
+    def icone_preview(self, obj):
+        """Exibe preview do ícone da badge"""
+        if obj.icone:
+            return format_html(
+                '<img src="{}" width="50" height="50" style="border-radius: 50%;" />',
+                obj.icone.url
+            )
+        return "Sem ícone"
+    icone_preview.short_description = 'Preview'
 
 
 @admin.register(UsuarioBadge)
 class UsuarioBadgeAdmin(admin.ModelAdmin):
-    """Administração de Badges dos Usuários"""
     list_display = ['usuario', 'badge', 'data_conquista']
     list_filter = ['badge', 'data_conquista']
     search_fields = ['usuario__username', 'badge__nome']
     readonly_fields = ['data_conquista']
     ordering = ['-data_conquista']
+    
+    fieldsets = (
+        ('Badge Conquistada', {
+            'fields': ('usuario', 'badge', 'data_conquista')
+        }),
+    )

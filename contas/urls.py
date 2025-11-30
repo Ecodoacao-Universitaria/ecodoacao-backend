@@ -7,7 +7,9 @@ from .views import (
     DeletarUsuarioView,
     AtualizarUsuarioView,
     CustomTokenObtainPairView,
-    CustomTokenRefreshView
+    CustomTokenRefreshView,
+    MeuPerfilView, 
+    AlterarSenhaView
 )
 
 urlpatterns = [
@@ -32,4 +34,7 @@ urlpatterns = [
     
     # Nova rota para atualizar usuário (apenas admin)
     path('usuarios/<int:id>/atualizar/', AtualizarUsuarioView.as_view(), name='atualizar-usuario'),
+    # Rotas para meu perfil e alterar senha
+    path('usuarios/meu-perfil/', MeuPerfilView.as_view(), name='meu-perfil'),
+    path('usuarios/alterar-senha/', AlterarSenhaView.as_view(), name='alterar-senha'),
 ]

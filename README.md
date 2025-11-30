@@ -94,6 +94,9 @@ requirements-dev.txt
 
 ### Docker
 ```bash
+# Criar migrações
+docker compose exec backend python manage.py makemigrations
+
 # Rodar migrações
 docker compose exec backend python manage.py migrate
 
@@ -111,13 +114,19 @@ docker compose exec backend coverage run --source='.' manage.py test
 docker compose exec backend coverage report
 docker compose exec backend coverage html
 
+# Reiniciar aplicação
+docker compose restart backend
+
 # Acessar relatório HTML de cobertura
 # Abra: htmlcov/index.html no navegador após rodar 'coverage html'
 
 # Parar containers
+docker stop $(docker ps -q)
+
+# Parar containers e remover
 docker compose down
 
-# Parar e remover volumes
+# Parar containers e remover volumes
 docker compose down -v
 ```
 
@@ -176,7 +185,7 @@ O projeto utiliza **banco de dados em memória** para testes, garantindo:
 
 Cada app possui seus próprios testes:
 - `contas/tests.py` - Testes de autenticação e gerenciamento de usuários
-- `doacoes/tests.py` - Testes de doações e campanhas
+- `doacoes/tests.py` - Testes de doações e badgers
 
 ### Cobertura de Código
 

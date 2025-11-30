@@ -3,7 +3,9 @@ from rest_framework.reverse import reverse
 from rest_framework import status
 from .models import Usuario
 from .factories import UsuarioFactory, AdminFactory, SuperuserFactory, UsuarioInativoFactory 
+from django.contrib.auth import get_user_model
 
+Usuario = get_user_model()
 
 class ListarUsuariosTestCase(APITestCase):
     """
@@ -108,7 +110,6 @@ class ListarUsuariosTestCase(APITestCase):
         data = response.data.get('results', response.data)
         self.assertEqual(len(data), 3)  # Todos têm @ufrpe.br
 
-
 class DeletarUsuarioTestCase(APITestCase):
     """
     Testes de integração para deleção de usuários.
@@ -195,6 +196,43 @@ class DeletarUsuarioTestCase(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+class MeuPerfilTests(APITestCase):
+    def setUp(self):
+        self.user = Usuario.objects.create_user(username="rodrigo", email="rod@example.com", password="S3nha!Segura")
+        self.client.force_authenticate(self.user)
+
+    def test_get_me(self):
+        url = reverse("meu-perfil")
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["username"], "rodrigo")
+
+    def test_update_me_email_e_username(self):
+        url = reverse("meu-perfil")
+        self.client.force_login(self.user)
+        novo_email = f"novo_{self.user.username}@ufrpe.br"
+        payload = {'username': f"{self.user.username}_x", 'email': novo_email}
+        resp = self.client.patch(url, data=payload, content_type='application/json')
+        self.assertIn(resp.status_code, (200, 400))
+        if resp.status_code == 200:
+            self.assertEqual(resp.data.get('email'), novo_email.lower())
+        else:
+            self.assertIn('erro', resp.data)
+            self.assertIn('detalhes', resp.data)
+
+    def test_nao_permite_email_duplicado(self):
+        Usuario.objects.create_user(username="outro", email="duplicado@example.com", password="Senha@123")
+        url = reverse("meu-perfil")
+        resp = self.client.patch(url, {"email": "duplicado@example.com"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_alterar_senha(self):
+        url = reverse("alterar-senha")
+        resp = self.client.post(url, {"senha_atual": "S3nha!Segura", "nova_senha": "NovaS3nha!123"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        # reautentica com a nova senha
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NovaS3nha!123"))
 
 class AtualizarUsuarioTestCase(APITestCase):
     """
