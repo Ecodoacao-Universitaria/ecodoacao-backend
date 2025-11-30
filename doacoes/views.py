@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from django.utils import timezone
-from .models import Doacao, Badge, UsuarioBadge, TipoDoacao
+from .models import Doacao, Badge, TipoDoacao
 from .serializers import (
     DoacaoSerializer, 
     CriarDoacaoSerializer, 

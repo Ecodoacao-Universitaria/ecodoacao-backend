@@ -171,7 +171,7 @@ flake8
 # Análise de segurança
 bandit -r .
 
-# Gerar referência no drf spetectular das rotas pro render
+# Gerar referência no drf spectacular das rotas pro render
 python manage.py spectacular --color --file openapi.yaml
 ```
 
