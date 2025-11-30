@@ -44,24 +44,14 @@ class DoacaoSerializer(serializers.ModelSerializer):
         }
 
     def get_evidencia_foto(self, obj: Doacao) -> Optional[str]:
-        """Retorna a URL completa da imagem com transformações do Cloudinary"""
+        """Retorna a URL completa da imagem do Cloudinary"""
         if not obj.evidencia_foto:
             return None
         
         try:
-            # Se já for uma URL completa, retorna
-            if obj.evidencia_foto.url.startswith('http'):
-                return obj.evidencia_foto.url
-            
-            # Constrói a URL com transformações
-            url = str(obj.evidencia_foto.url)
-            
-            # Se a URL não contém transformações, adiciona
-            if '/upload/' in url and '/c_limit,h_800,w_800/' not in url:
-                url = url.replace('/upload/', '/upload/c_limit,h_800,w_800/')
-            
-            return url
-        except Exception:
+            # Cloudinary já aplica as transformações definidas no modelo
+            return obj.evidencia_foto.url
+        except (AttributeError, ValueError):
             return None
 
 class CriarDoacaoSerializer(serializers.ModelSerializer):
@@ -76,27 +66,25 @@ class CriarDoacaoSerializer(serializers.ModelSerializer):
 
     def validate_descricao(self, value):
         """Valida a descrição"""
-        if value and len(value) > 240:
-            raise serializers.ValidationError("A descrição deve ter no máximo 240 caracteres.")
         if value and len(value) < 10:
             raise serializers.ValidationError("A descrição deve ter no mínimo 10 caracteres.")
         return value
 
     def validate_evidencia_foto(self, value):
         """Valida o arquivo de imagem"""
-        if not value:
-            raise serializers.ValidationError("A foto da doação é obrigatória.")
-        
-        # Valida tipo de arquivo
-        valid_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-        if hasattr(value, 'content_type') and value.content_type not in valid_types:
-            raise serializers.ValidationError(
-                "Formato inválido. Use: JPEG, PNG, GIF ou WebP."
-            )
-        
-        # Valida tamanho (10MB)
-        if hasattr(value, 'size') and value.size > 10 * 1024 * 1024:
-            raise serializers.ValidationError("A imagem deve ter no máximo 10MB.")
+        try:
+            # Valida tipo de arquivo
+            valid_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+            if value.content_type not in valid_types:
+                raise serializers.ValidationError(
+                    "Formato inválido. Use: JPEG, PNG, GIF ou WebP."
+                )
+            
+            # Valida tamanho (10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError("A imagem deve ter no máximo 10MB.")
+        except AttributeError:
+            raise serializers.ValidationError("Arquivo de imagem inválido.")
         
         return value
 
@@ -134,24 +122,14 @@ class BadgeSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def get_icone(self, obj: Badge) -> Optional[str]:
-        """Retorna a URL completa do ícone com transformações do Cloudinary"""
+        """Retorna a URL completa do ícone do Cloudinary"""
         if not obj.icone:
             return None
         
         try:
-            # Se já for uma URL completa, retorna
-            icone_url = str(obj.icone)
-            if icone_url.startswith('http'):
-                return icone_url
-            
-            # Tenta construir URL absoluta se houver request no contexto
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.icone.url)
-            
-            # Fallback para URL do campo
+            # Cloudinary já aplica as transformações definidas no modelo
             return obj.icone.url
-        except Exception:
+        except (AttributeError, ValueError):
             return None
 
 class UsuarioBadgeSerializer(serializers.ModelSerializer):
@@ -173,6 +151,6 @@ class DashboardUsuarioSerializer(serializers.ModelSerializer):
         model = Usuario
         fields = ['id', 'username', 'email', 'saldo_moedas', 'badges_conquistados']
 
-    def get_badges_conquistados(self, obj) -> list:
+    def get_badges_conquistados(self, obj: Usuario) -> list:
         badges = UsuarioBadge.objects.filter(usuario=obj).select_related('badge')
         return UsuarioBadgeSerializer(badges, many=True, context=self.context).data
