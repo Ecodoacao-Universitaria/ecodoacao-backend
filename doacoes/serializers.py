@@ -115,6 +115,7 @@ class BadgeSerializer(serializers.ModelSerializer):
             'descricao', 
             'icone_url',
             'tipo',
+            'tipo_display',
             'custo_moedas',
             'criterio_doacoes',
             'criterio_moedas',
@@ -122,7 +123,7 @@ class BadgeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
 
-    def get_icone_url(self, obj: Badge) -> str | None:
+    def get_icone_url(self, obj: Badge) -> Optional[str]:
         """Retorna a URL completa do ícone do Cloudinary"""
         if not obj.icone:
             return None
