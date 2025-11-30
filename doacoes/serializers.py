@@ -72,16 +72,19 @@ class CriarDoacaoSerializer(serializers.ModelSerializer):
 
     def validate_evidencia_foto(self, value):
         """Valida o arquivo de imagem"""
-        # Valida tipo de arquivo
-        valid_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-        if value.content_type not in valid_types:
-            raise serializers.ValidationError(
-                "Formato inválido. Use: JPEG, PNG, GIF ou WebP."
-            )
-        
-        # Valida tamanho (10MB)
-        if value.size > 10 * 1024 * 1024:
-            raise serializers.ValidationError("A imagem deve ter no máximo 10MB.")
+        try:
+            # Valida tipo de arquivo
+            valid_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+            if value.content_type not in valid_types:
+                raise serializers.ValidationError(
+                    "Formato inválido. Use: JPEG, PNG, GIF ou WebP."
+                )
+            
+            # Valida tamanho (10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError("A imagem deve ter no máximo 10MB.")
+        except AttributeError:
+            raise serializers.ValidationError("Arquivo de imagem inválido.")
         
         return value
 
