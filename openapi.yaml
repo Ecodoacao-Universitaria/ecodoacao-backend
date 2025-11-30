@@ -1,0 +1,1547 @@
+openapi: 3.0.3
+info:
+  title: EcoDoação API
+  version: 1.0.0
+  description: API para gerenciamento de contas e doações
+paths:
+  /api/:
+    get:
+      operationId: root_retrieve
+      summary: Índice da API
+      tags:
+      - Root
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiRoot'
+          description: ''
+  /api/contas/cadastrar/:
+    post:
+      operationId: contas_cadastrar_create
+      description: Cria um novo usuário no sistema
+      summary: Cadastrar novo usuário
+      tags:
+      - Contas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastroRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CadastroRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CadastroRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/contas/dashboard/:
+    get:
+      operationId: contas_dashboard_retrieve
+      description: Retorna informações do usuário logado (dashboard)
+      summary: Dashboard do usuário
+      tags:
+      - Contas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardUsuario'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/contas/token/:
+    post:
+      operationId: contas_token_create
+      description: Retorna um par de tokens (access e refresh) usando usuario e senha
+      summary: Obter token JWT
+      tags:
+      - Autenticação
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+            examples:
+              LoginExemplo:
+                value:
+                  username: usuario_teste
+                  password: senha123
+                summary: Login exemplo
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access:
+                    type: string
+                    description: Token de acesso (expira em 5min)
+                  refresh:
+                    type: string
+                    description: Token de refresh (expira em 1 dia)
+              examples:
+                RespostaSucesso:
+                  value:
+                    access: eyJ0eXAiOiJKV1QiLCJhbGc...
+                    refresh: eyJ0eXAiOiJKV1QiLCJhbGc...
+                  summary: Resposta sucesso
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                description: Credenciais inválidas
+              examples:
+                RespostaFalha:
+                  value:
+                    detail: No active account found with the given credentials
+                  summary: Resposta falha
+          description: ''
+  /api/contas/token/refresh/:
+    post:
+      operationId: contas_token_refresh_create
+      description: Retorna um novo access token usando um refresh token válido
+      summary: Renovar token JWT
+      tags:
+      - Autenticação
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+            examples:
+              RefreshExemplo:
+                value:
+                  refresh: eyJ0eXAiOiJKV1QiLCJhbGc...
+                summary: Refresh exemplo
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access:
+                    type: string
+                    description: Novo token de acesso
+              examples:
+                RespostaSucesso:
+                  value:
+                    access: eyJ0eXAiOiJKV1QiLCJhbGc...
+                  summary: Resposta sucesso
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                description: Refresh token inválido ou expirado
+          description: ''
+  /api/contas/usuarios/:
+    get:
+      operationId: contas_usuarios_list
+      description: Lista todos os usuários do sistema com filtros opcionais (apenas
+        para administradores)
+      summary: Listar todos os usuários
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+        description: Filtrar por usuários ativos (true) ou inativos (false)
+        examples:
+          UsuáriosAtivos:
+            value: 'true'
+            summary: Usuários ativos
+          UsuáriosInativos:
+            value: 'false'
+            summary: Usuários inativos
+      - in: query
+        name: is_staff
+        schema:
+          type: boolean
+        description: Filtrar por administradores (true) ou usuários comuns (false)
+        examples:
+          ApenasAdmins:
+            value: 'true'
+            summary: Apenas admins
+          ApenasUsuários:
+            value: 'false'
+            summary: Apenas usuários
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Buscar por username ou email (busca parcial)
+        examples:
+          BuscaPorNome:
+            value: joao
+            summary: Busca por nome
+          BuscaPorEmail:
+            value: '@gmail.com'
+            summary: Busca por email
+      tags:
+      - Contas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsuarioList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                description: Não autenticado
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Sem permissão de administrador
+          description: ''
+  /api/contas/usuarios/{id}/atualizar/:
+    patch:
+      operationId: contas_usuarios_atualizar_partial_update
+      description: Atualiza informações de um usuário específico pelo ID (apenas para
+        administradores)
+      summary: Atualizar usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Contas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUsuarioRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUsuarioRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUsuarioRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/contas/usuarios/{id}/deletar/:
+    delete:
+      operationId: contas_usuarios_deletar_destroy
+      description: Deleta um usuário específico pelo ID (apenas para administradores)
+      summary: Deletar usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Contas
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/contas/usuarios/alterar-senha/:
+    post:
+      operationId: contas_usuarios_alterar_senha_create
+      description: Permite que o usuário autenticado altere sua senha fornecendo a
+        senha atual e a nova senha
+      summary: Alterar senha
+      tags:
+      - Contas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlterarSenhaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AlterarSenhaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AlterarSenhaRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/contas/usuarios/meu-perfil/:
+    get:
+      operationId: contas_usuarios_meu_perfil_retrieve
+      description: Recupera ou atualiza as informações do perfil do usuário autenticado
+      summary: Meu perfil
+      tags:
+      - Contas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeuPerfil'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: contas_usuarios_meu_perfil_update
+      description: Recupera ou atualiza as informações do perfil do usuário autenticado
+      summary: Meu perfil
+      tags:
+      - Contas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeuPerfilRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MeuPerfilRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MeuPerfilRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeuPerfil'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: contas_usuarios_meu_perfil_partial_update
+      description: Recupera ou atualiza as informações do perfil do usuário autenticado
+      summary: Meu perfil
+      tags:
+      - Contas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMeuPerfilRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMeuPerfilRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMeuPerfilRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeuPerfil'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/doacoes/admin/badges/:
+    get:
+      operationId: doacoes_admin_badges_list
+      summary: Criar badge (admin)
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      tags:
+      - Admin - Badges
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBadgeList'
+          description: ''
+    post:
+      operationId: doacoes_admin_badges_create
+      summary: Criar badge (admin)
+      tags:
+      - Admin - Badges
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BadgeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BadgeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BadgeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+          description: ''
+  /api/doacoes/admin/badges/{id}/:
+    get:
+      operationId: doacoes_admin_badges_retrieve
+      summary: Criar badge (admin)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Badge.
+        required: true
+      tags:
+      - Admin - Badges
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+          description: ''
+    patch:
+      operationId: doacoes_admin_badges_partial_update
+      summary: Criar badge (admin)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Badge.
+        required: true
+      tags:
+      - Admin - Badges
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBadgeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBadgeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBadgeRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+          description: ''
+    delete:
+      operationId: doacoes_admin_badges_destroy
+      summary: Criar badge (admin)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Badge.
+        required: true
+      tags:
+      - Admin - Badges
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/doacoes/admin/pendentes/:
+    get:
+      operationId: doacoes_admin_pendentes_list
+      summary: Listar doações pendentes
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      tags:
+      - Admin - Doações
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDoacaoList'
+          description: ''
+  /api/doacoes/admin/validar/{id}/:
+    put:
+      operationId: doacoes_admin_validar_update
+      summary: Validar doação (aprovar/recusar)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin - Doações
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidarDoacaoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ValidarDoacaoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ValidarDoacaoRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidarDoacao'
+          description: ''
+    patch:
+      operationId: doacoes_admin_validar_partial_update
+      summary: Validar doação (aprovar/recusar)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin - Doações
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedValidarDoacaoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedValidarDoacaoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedValidarDoacaoRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidarDoacao'
+          description: ''
+  /api/doacoes/badges/:
+    get:
+      operationId: doacoes_badges_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      tags:
+      - Badges
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBadgeList'
+          description: ''
+  /api/doacoes/badges/{id}/:
+    get:
+      operationId: doacoes_badges_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Badge.
+        required: true
+      tags:
+      - Badges
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+          description: ''
+  /api/doacoes/badges/comprar/:
+    post:
+      operationId: doacoes_badges_comprar_create
+      tags:
+      - Badges
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BadgeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BadgeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BadgeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+          description: ''
+  /api/doacoes/badges/disponiveis/:
+    get:
+      operationId: doacoes_badges_disponiveis_retrieve
+      tags:
+      - Badges
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+          description: ''
+  /api/doacoes/badges/minhas-badges/:
+    get:
+      operationId: doacoes_badges_minhas_badges_retrieve
+      tags:
+      - Badges
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+          description: ''
+  /api/doacoes/historico/:
+    get:
+      operationId: doacoes_historico_list
+      summary: Histórico de doações do usuário
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filtrar por status (PENDENTE, APROVADA, RECUSADA)
+      tags:
+      - Doações
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDoacaoList'
+          description: ''
+  /api/doacoes/submeter/:
+    post:
+      operationId: doacoes_submeter_create
+      summary: Submeter nova doação
+      tags:
+      - Doações
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarDoacaoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CriarDoacaoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CriarDoacaoRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CriarDoacao'
+          description: ''
+  /api/schema/:
+    get:
+      operationId: schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - schema
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+components:
+  schemas:
+    AlterarSenhaRequest:
+      type: object
+      properties:
+        senha_atual:
+          type: string
+          writeOnly: true
+          minLength: 1
+        nova_senha:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - nova_senha
+      - senha_atual
+    ApiRoot:
+      type: object
+      properties:
+        contas:
+          type: string
+        doacoes:
+          type: string
+        docs:
+          type: string
+        schema:
+          type: string
+      required:
+      - contas
+      - doacoes
+      - docs
+      - schema
+    Badge:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+        icone:
+          type: string
+          format: uri
+          nullable: true
+        tipo:
+          $ref: '#/components/schemas/TipoEnum'
+        tipo_display:
+          type: string
+          readOnly: true
+        custo_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: 0 para badges de conquista
+        criterio_doacoes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+          description: Número de doações necessárias
+        criterio_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+          description: Total de moedas ganhas necessárias
+        ativo:
+          type: boolean
+      required:
+      - descricao
+      - id
+      - nome
+      - tipo_display
+    BadgeRequest:
+      type: object
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descricao:
+          type: string
+          minLength: 1
+        icone:
+          type: string
+          format: binary
+          nullable: true
+        tipo:
+          $ref: '#/components/schemas/TipoEnum'
+        custo_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: 0 para badges de conquista
+        criterio_doacoes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+          description: Número de doações necessárias
+        criterio_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+          description: Total de moedas ganhas necessárias
+        ativo:
+          type: boolean
+      required:
+      - descricao
+      - nome
+    CadastroRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          title: Usuário
+          description: Obrigatório. 150 caracteres ou menos. Letras, números e @/./+/-/_
+            apenas.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Endereço de email
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          title: Senha
+          maxLength: 128
+      required:
+      - password
+      - username
+    CriarDoacao:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        tipo_doacao:
+          type: integer
+        descricao:
+          type: string
+        evidencia_foto:
+          type: string
+          format: uri
+      required:
+      - evidencia_foto
+      - id
+      - tipo_doacao
+    CriarDoacaoRequest:
+      type: object
+      properties:
+        tipo_doacao:
+          type: integer
+        descricao:
+          type: string
+        evidencia_foto:
+          type: string
+          format: binary
+      required:
+      - evidencia_foto
+      - tipo_doacao
+    DashboardUsuario:
+      type: object
+      properties:
+        username:
+          type: string
+          title: Usuário
+          description: Obrigatório. 150 caracteres ou menos. Letras, números e @/./+/-/_
+            apenas.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Endereço de email
+          maxLength: 254
+        saldo_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          title: Saldo de Moedas
+        badges_conquistados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Badge'
+          readOnly: true
+        role:
+          type: string
+          readOnly: true
+        is_admin:
+          type: integer
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+      required:
+      - badges_conquistados
+      - is_admin
+      - is_staff
+      - role
+      - username
+    Doacao:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        doador:
+          type: string
+          readOnly: true
+        tipo_doacao:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/DoacaoStatusEnum'
+        evidencia_foto:
+          type: string
+          format: uri
+          nullable: true
+        data_submissao:
+          type: string
+          format: date-time
+          readOnly: true
+        motivo_recusa:
+          type: string
+          nullable: true
+        descricao:
+          type: string
+        data_validacao:
+          type: string
+          format: date-time
+          nullable: true
+        validado_por:
+          type: string
+          readOnly: true
+      required:
+      - data_submissao
+      - doador
+      - id
+      - tipo_doacao
+      - validado_por
+    DoacaoStatusEnum:
+      enum:
+      - PENDENTE
+      - APROVADA
+      - RECUSADA
+      type: string
+      description: |-
+        * `PENDENTE` - Pendente
+        * `APROVADA` - Aprovada
+        * `RECUSADA` - Recusada
+    MeuPerfil:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+      - email
+      - id
+      - username
+    MeuPerfilRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+      - username
+    PaginatedBadgeList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Badge'
+    PaginatedDoacaoList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Doacao'
+    PaginatedUsuarioList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Usuario'
+    PatchedBadgeRequest:
+      type: object
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descricao:
+          type: string
+          minLength: 1
+        icone:
+          type: string
+          format: binary
+          nullable: true
+        tipo:
+          $ref: '#/components/schemas/TipoEnum'
+        custo_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: 0 para badges de conquista
+        criterio_doacoes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+          description: Número de doações necessárias
+        criterio_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+          description: Total de moedas ganhas necessárias
+        ativo:
+          type: boolean
+    PatchedMeuPerfilRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+          minLength: 1
+    PatchedUsuarioRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          title: Usuário
+          description: Obrigatório. 150 caracteres ou menos. Letras, números e @/./+/-/_
+            apenas.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Endereço de email
+          maxLength: 254
+        saldo_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          title: Saldo de Moedas
+        is_staff:
+          type: boolean
+          title: Membro da equipe
+          description: Indica que usuário consegue acessar este site de administração.
+        is_active:
+          type: boolean
+          title: Ativo
+          description: Indica que o usuário será tratado como ativo. Ao invés de excluir
+            contas de usuário, desmarque isso.
+        date_joined:
+          type: string
+          format: date-time
+          title: Data de registro
+    PatchedValidarDoacaoRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ValidarDoacaoStatusEnum'
+        motivo_recusa:
+          type: string
+    TipoEnum:
+      enum:
+      - CONQUISTA
+      - COMPRA
+      - ESPECIAL
+      type: string
+      description: |-
+        * `CONQUISTA` - Conquista Automática
+        * `COMPRA` - Disponível para Compra
+        * `ESPECIAL` - Badge Especial
+    TokenObtainPairRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - refresh
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          title: Usuário
+          description: Obrigatório. 150 caracteres ou menos. Letras, números e @/./+/-/_
+            apenas.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Endereço de email
+          maxLength: 254
+        saldo_moedas:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          title: Saldo de Moedas
+        is_staff:
+          type: boolean
+          title: Membro da equipe
+          description: Indica que usuário consegue acessar este site de administração.
+        is_active:
+          type: boolean
+          title: Ativo
+          description: Indica que o usuário será tratado como ativo. Ao invés de excluir
+            contas de usuário, desmarque isso.
+        role:
+          type: string
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          title: Data de registro
+      required:
+      - id
+      - role
+      - username
+    ValidarDoacao:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ValidarDoacaoStatusEnum'
+        motivo_recusa:
+          type: string
+      required:
+      - status
+    ValidarDoacaoRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ValidarDoacaoStatusEnum'
+        motivo_recusa:
+          type: string
+      required:
+      - status
+    ValidarDoacaoStatusEnum:
+      enum:
+      - APROVADA
+      - RECUSADA
+      type: string
+      description: |-
+        * `APROVADA` - APROVADA
+        * `RECUSADA` - RECUSADA
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+servers:
+- url: http://localhost:8000
+  description: Desenvolvimento

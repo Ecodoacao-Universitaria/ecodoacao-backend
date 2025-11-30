@@ -45,6 +45,7 @@ if DEBUG and 'test' not in sys.argv:
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -135,6 +136,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -153,6 +155,9 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'core.exceptions.drf_exception_handler',
 }
 
+CSRF_TRUSTED_ORIGINS_STRING = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGINS_STRING.split(',') if CSRF_TRUSTED_ORIGINS_STRING else []
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'EcoDoação API',
     'DESCRIPTION': 'API para gerenciamento de contas e doações',
@@ -160,6 +165,7 @@ SPECTACULAR_SETTINGS = {
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     'SERVERS': [
         {'url': 'http://localhost:8000', 'description': 'Desenvolvimento'},
+        {'url': os.getenv('PUBLIC_SERVER_URL', ''), 'description': 'Produção'},
     ],
     'COMPONENT_SPLIT_REQUEST': True,
 }

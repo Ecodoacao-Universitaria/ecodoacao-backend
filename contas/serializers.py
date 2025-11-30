@@ -6,9 +6,10 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 Usuario = get_user_model()
-
 class EcoTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -78,7 +79,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         model = Usuario
         fields = ['id', 'username', 'email', 'saldo_moedas', 'is_staff', 'is_active', 'role', 'date_joined']
     
-    def get_role(self, obj):
+    def get_role(self, obj) -> str:
         return "Admin" if obj.is_staff else "Usuário"
 
 class CadastroSerializer(serializers.ModelSerializer):
@@ -118,8 +119,8 @@ class DashboardUsuarioSerializer(serializers.ModelSerializer):
         model = Usuario
         fields = ['username', 'email', 'saldo_moedas', 'badges_conquistados', 'role', 'is_admin', 'is_staff']
 
-    def get_role(self, obj):
+    def get_role(self, obj) -> str:
         return 'ADMIN' if (obj.is_staff or obj.is_superuser) else 'USUARIO'
 
-    def get_is_admin(self, obj):
+    def get_is_admin(self, obj) -> int:
         return 1 if (obj.is_staff or obj.is_superuser) else 0
