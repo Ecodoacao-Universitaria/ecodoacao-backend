@@ -15,6 +15,8 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
+RUN mkdir -p /app/media /app/staticfiles
+
 EXPOSE 8000
 
 CMD ["sh", "-c", "\
