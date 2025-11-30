@@ -122,17 +122,12 @@ class BadgeSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def get_icone(self, obj: Badge) -> Optional[str]:
-        """Retorna a URL completa do ícone"""
+        """Retorna a URL completa do ícone do Cloudinary"""
         if not obj.icone:
             return None
         
         try:
-            # Tenta construir URL absoluta se houver request no contexto
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.icone.url)
-            
-            # Fallback para URL do campo
+            # Cloudinary já aplica as transformações definidas no modelo
             return obj.icone.url
         except (AttributeError, ValueError):
             return None

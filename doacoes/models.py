@@ -77,7 +77,16 @@ class Badge(models.Model):
     
     nome = models.CharField(max_length=100)
     descricao = models.TextField()
-    icone = models.ImageField(upload_to='badges/', blank=True, null=True)
+    icone = CloudinaryField(
+        'icone',
+        folder='badges',
+        transformation={
+            'quality': 'auto:eco',
+            'fetch_format': 'auto',
+        },
+        blank=True,
+        null=True
+    )
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='CONQUISTA')
     custo_moedas = models.IntegerField(default=0, help_text="0 para badges de conquista")
     criterio_doacoes = models.IntegerField(null=True, blank=True, help_text="Número de doações necessárias")
