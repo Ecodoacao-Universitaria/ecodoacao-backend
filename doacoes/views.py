@@ -1,11 +1,12 @@
-from rest_framework import generics, status
-from rest_framework.decorators import api_view
+from rest_framework import generics, status, viewsets, permissions
+from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from django.utils import timezone
-from .models import Doacao, Badge, UsuarioBadge
+
+from .models import Doacao, Badge, UsuarioBadge, TipoDoacao
 from .serializers import (
     DoacaoSerializer, 
     CriarDoacaoSerializer, 
@@ -23,12 +24,20 @@ class CustomPagination(generics.pagination.PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 50
 
+# ============================================================================
+# TIPOS DE DOAÇÃO
+# ============================================================================
+
 @extend_schema(tags=['Doações'], summary='Listar tipos de doação')
 class ListarTiposDoacaoView(generics.ListAPIView):
     queryset = TipoDoacao.objects.filter(ativo=True)
     serializer_class = TipoDoacaoSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = CustomPagination
+
+# ============================================================================
+# DOAÇÕES
+# ============================================================================
 
 @extend_schema(tags=['Doações'], summary='Criar doação')
 class CriarDoacaoView(generics.CreateAPIView):
@@ -62,6 +71,10 @@ class HistoricoDoacoesView(generics.ListAPIView):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+
+# ============================================================================
+# ADMIN
+# ============================================================================
 
 @extend_schema(tags=['Admin'], summary='Listar doações pendentes')
 class AdminDoacoesPendentesView(generics.ListAPIView):
@@ -99,41 +112,71 @@ class AdminAtualizarDoacaoView(generics.UpdateAPIView):
 
         return Response(resultado, status=status.HTTP_200_OK)
 
-@extend_schema(tags=['Badges'], summary='Listar badges disponíveis')
-class ListarBadgesDisponiveisView(generics.ListAPIView):
-    serializer_class = BadgeSerializer
-    permission_classes = [IsAdminUser]
-    http_method_names = ['get', 'post', 'patch', 'delete']  
+# ============================================================================
+# BADGES
+# ============================================================================
 
 @extend_schema(tags=['Badges'])
 class BadgeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Badge.objects.filter(ativo=True)
     serializer_class = BadgeSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
+    pagination_class = CustomPagination
 
-    @action(detail=False, methods=['get'], url_path='minhas-badges')
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    @extend_schema(summary='Listar minhas badges conquistadas')
+    @action(detail=False, methods=['get'], url_path='minhas')
     def minhas_badges(self, request):
-        qs = BadgeService.listar_badges_usuario(request.user)
-        ser = UsuarioBadgeSerializer(qs, many=True)
+        qs = UsuarioBadge.objects.filter(usuario=request.user).select_related('badge').order_by('-data_conquista')
+        ser = UsuarioBadgeSerializer(qs, many=True, context={'request': request})
         return Response(ser.data)
 
+    @extend_schema(summary='Listar badges disponíveis para compra')
     @action(detail=False, methods=['get'], url_path='disponiveis')
     def disponiveis(self, request):
-        qs = BadgeService.listar_badges_disponiveis(request.user)
-        ser = BadgeSerializer(qs, many=True)
+        badges_usuario = UsuarioBadge.objects.filter(usuario=request.user).values_list('badge_id', flat=True)
+        qs = Badge.objects.filter(ativo=True, tipo='COMPRA').exclude(id__in=badges_usuario)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            ser = BadgeSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(ser.data)
+        ser = BadgeSerializer(qs, many=True, context={'request': request})
         return Response(ser.data)
 
+    @extend_schema(
+        summary='Comprar badge',
+        request=ComprarBadgeSerializer,
+        responses={200: {'type': 'object', 'properties': {
+            'sucesso': {'type': 'boolean'},
+            'mensagem': {'type': 'string'},
+            'saldo_restante': {'type': 'integer'}
+        }}}
+    )
     @action(detail=False, methods=['post'], url_path='comprar')
     def comprar(self, request):
         ser = ComprarBadgeSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        resultado = BadgeService.comprar_badge(request.user, ser.validated_data['badge_id'])
-        status_code = resultado.get('status', (status.HTTP_200_OK if resultado.get('sucesso') else status.HTTP_400_BAD_REQUEST))
+        resultado = processar_compra_badge(request.user, ser.validated_data['badge_id'])
+        status_code = status.HTTP_200_OK if resultado.get('sucesso') else status.HTTP_400_BAD_REQUEST
         return Response(resultado, status=status_code)
-        
+
+# ============================================================================
+# DASHBOARD
+# ============================================================================
+
+@extend_schema(tags=['Dashboard'], summary='Dados do dashboard do usuário')
 class DashboardUsuarioView(generics.RetrieveAPIView):
     serializer_class = DashboardUsuarioSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
