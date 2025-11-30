@@ -2,7 +2,6 @@ from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
@@ -11,7 +10,6 @@ from .serializers import CadastroSerializer, DashboardUsuarioSerializer, Usuario
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from .models import Usuario
-import os
 
 Usuario = get_user_model()
 
@@ -125,63 +123,6 @@ class CadastroUsuarioView(generics.CreateAPIView):
     serializer_class = CadastroSerializer
     permission_classes = [AllowAny] 
 
-@extend_schema(    
-    tags=['Contas'],
-    summary='Criar superusuário temporário',
-    description='Cria um superusuário temporário usando variáveis de ambiente (apenas para ambientes de desenvolvimento)',
-    responses={
-        201: OpenApiTypes.OBJECT,
-        200: OpenApiTypes.OBJECT,
-        400: OpenApiTypes.OBJECT,
-        500: OpenApiTypes.OBJECT
-    }
-)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-# URL temporária para criar superusuário na produção
-def criar_superuser_temporario(request):
-  
-    try:
-        user_model = get_user_model()
-        
-        # Lendo as variáveis de ambiente que você configurou
-        ADMIN_USERNAME = os.getenv('ADMIN_USER')
-        ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
-        ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
-
-        # Se qualquer uma estiver faltando, falhe com uma mensagem clara
-        if not all([ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD]):
-            return Response(
-                {"erro": "Uma ou mais variáveis (ADMIN_USER, ADMIN_EMAIL, ADMIN_PASSWORD) não foram configuradas no Render."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        
-        if not user_model.objects.filter(username=ADMIN_USERNAME).exists():
-            
-            # Tenta criar o superusuário
-            user_model.objects.create_superuser(
-                username=ADMIN_USERNAME,
-                email=ADMIN_EMAIL,
-                password=ADMIN_PASSWORD
-            )
-            return Response(
-                {"sucesso": f"Usuário '{ADMIN_USERNAME}' criado com sucesso."}, 
-                status=status.HTTP_201_CREATED
-            )
-        else:
-            return Response(
-                {"mensagem": f"Usuário '{ADMIN_USERNAME}' já existe."}, 
-                status=status.HTTP_200_OK
-            )
-            
-    except Exception as e:
-        # Captura qualquer exceção que ocorra durante o processo
-        return Response(
-            {"erro_real_capturado_pelo_django": str(e)}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-    
 @extend_schema(
     tags=['Contas'],
     summary='Dashboard do usuário',
