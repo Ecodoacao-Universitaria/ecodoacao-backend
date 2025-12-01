@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from .models import Doacao, Badge, UsuarioBadge, TipoDoacao
@@ -42,6 +43,7 @@ class ListarTiposDoacaoView(generics.ListAPIView):
 class CriarDoacaoView(generics.CreateAPIView):
     serializer_class = CriarDoacaoSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -124,6 +126,7 @@ class AdminBadgeViewSet(viewsets.ModelViewSet):
     queryset = Badge.objects.all()
     serializer_class = BadgeSerializer
     permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_serializer_context(self):
