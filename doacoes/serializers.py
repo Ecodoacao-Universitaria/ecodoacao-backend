@@ -104,6 +104,7 @@ class ValidarDoacaoSerializer(serializers.Serializer):
         return data
 
 class BadgeSerializer(serializers.ModelSerializer):
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
     icone_url = serializers.SerializerMethodField()
     
     class Meta:
@@ -114,6 +115,7 @@ class BadgeSerializer(serializers.ModelSerializer):
             'descricao', 
             'icone_url',
             'tipo',
+            'tipo_display',
             'custo_moedas',
             'criterio_doacoes',
             'criterio_moedas',
