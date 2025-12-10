@@ -114,7 +114,7 @@ Configure as seguintes variáveis no arquivo `.env`:
 | Variável | Descrição | Exemplo | Obrigatório |
 |----------|-----------|---------|-------------|
 | `DEBUG` | Modo de depuração | `True` ou `False` | Sim |
-| `SECRET_KEY` | Chave secreta do Django | `django-insecure-xxx` | Sim (produção) |
+| `SECRET_KEY` | Chave secreta do Django | `<your-secret-key>` | Sim (produção) |
 | `DB_ENGINE` | Engine do banco de dados | `django.db.backends.postgresql` | Sim |
 | `DB_NAME` | Nome do banco de dados | `doacoes_db` | Sim |
 | `DB_USER` | Usuário do banco | `postgres` | Sim |
@@ -585,7 +585,7 @@ lsof -i :8000
 # Mate o processo (Linux/Mac)
 kill -9 <PID>
 
-# Ou altere a porta no docker-compose.yml
+# Ou altere a porta no Docker-compose.yml (o arquivo mantém o hífen)
 ports:
   - "8001:8000"  # host:container
 ```
