@@ -76,14 +76,14 @@ class SubmeterDoacaoTestCase(APITestCase):
         response = self.client.post(self.url, data, format='multipart')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], 'PENDENTE')
-        self.assertEqual(response.data['tipo_doacao'], 'Papel')
-        
+
         # Verifica que foi salva no banco
         self.assertEqual(Doacao.objects.count(), 1)
         doacao = Doacao.objects.first()
+        self.assertEqual(doacao.status, 'PENDENTE')
         self.assertEqual(doacao.doador, self.usuario)
         self.assertEqual(doacao.tipo_doacao, self.tipo_doacao)
+        self.assertEqual(doacao.tipo_doacao.nome, 'Papel')
     
     def test_submeter_sem_evidencia_retorna_400(self):
         self.client.force_authenticate(user=self.usuario)

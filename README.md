@@ -111,6 +111,16 @@ docker compose exec backend python manage.py test
 
 # Executar testes com cobertura
 docker compose exec backend coverage run --source='.' manage.py test
+
+# (opcional) Instalar dependências de desenvolvimento dentro do container (necessário para pytest-html)
+docker compose exec backend pip install -r requirements-dev.txt
+
+# Relatório HTML de testes (gera reports/tests/report.html)
+docker compose exec backend sh -lc "mkdir -p reports/tests; pytest --cov=. --cov-report=term-missing --cov-report=html --html=reports/tests/report.html --self-contained-html"
+
+# Alternativa (gera report.html na raiz do projeto)
+docker compose exec backend pytest --cov=. --cov-report=term-missing --cov-report=html --html=report.html --self-contained-html
+
 docker compose exec backend coverage report
 docker compose exec backend coverage html
 

@@ -53,4 +53,6 @@ urlpatterns = [
 # Configuração para servir arquivos de mídia durante o desenvolvimento
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += path('__debug__/', include('debug_toolbar.urls')),
+    # Inclui Debug Toolbar apenas se o app estiver instalado (evita erros em testes)
+    if 'debug_toolbar' in settings.INSTALLED_APPS:
+        urlpatterns += [path('__debug__/', include('debug_toolbar.urls'))]

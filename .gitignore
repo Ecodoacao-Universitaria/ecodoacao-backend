@@ -50,3 +50,6 @@ Thumbs.db
 # Test coverage reports
 htmlcov/
 .coverage
+
+# Arquivos de relatórios de teste HTML
+reports/

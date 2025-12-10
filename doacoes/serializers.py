@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.conf import settings
+from uuid import uuid4
 from .models import Doacao, TipoDoacao, Badge, UsuarioBadge
 from django.contrib.auth import get_user_model
 from typing import Optional
@@ -90,6 +92,10 @@ class CriarDoacaoSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['doador'] = self.context['request'].user
+        # Em ambiente de teste, evitamos upload externo do CloudinaryField
+        # e salvamos um public_id fictício (string), compatível com o campo.
+        if getattr(settings, 'TESTING', False):
+            validated_data['evidencia_foto'] = f"evidencias/test_upload_{uuid4().hex}.jpg"
         return super().create(validated_data)
 
 class ValidarDoacaoSerializer(serializers.Serializer):

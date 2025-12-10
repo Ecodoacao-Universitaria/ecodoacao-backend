@@ -26,7 +26,8 @@ class DoacaoPendenteFactory(DjangoModelFactory):
     doador = SubFactory(UsuarioFactory)
     tipo_doacao = SubFactory(TipoDoacaoFactory)
     status = 'PENDENTE'
-    evidencia_foto = factory.django.ImageField(color='blue', width=100, height=100)
+    # CloudinaryField armazena um public_id (string). Em testes, usamos um placeholder.
+    evidencia_foto = factory.Sequence(lambda n: f"evidencias/teste_pendente_{n}.jpg")
 
 
 class DoacaoAprovadaFactory(DjangoModelFactory):
@@ -38,9 +39,9 @@ class DoacaoAprovadaFactory(DjangoModelFactory):
     doador = SubFactory(UsuarioFactory)
     tipo_doacao = SubFactory(TipoDoacaoFactory)
     status = 'APROVADA'
-    evidencia_foto = factory.django.ImageField(color='green', width=100, height=100)
+    evidencia_foto = factory.Sequence(lambda n: f"evidencias/teste_aprovada_{n}.jpg")
     validado_por = SubFactory(AdminFactory)
-    data_validacao = factory.LazyFunction(timezone.now)  # ✅ CORRIGIDO
+    data_validacao = factory.LazyFunction(timezone.now)  
 
 
 class DoacaoRecusadaFactory(DjangoModelFactory):
@@ -52,10 +53,10 @@ class DoacaoRecusadaFactory(DjangoModelFactory):
     doador = SubFactory(UsuarioFactory)
     tipo_doacao = SubFactory(TipoDoacaoFactory)
     status = 'RECUSADA'
-    evidencia_foto = factory.django.ImageField(color='red', width=100, height=100)
+    evidencia_foto = factory.Sequence(lambda n: f"evidencias/teste_recusada_{n}.jpg")
     validado_por = SubFactory(AdminFactory)
     motivo_recusa = factory.Faker('sentence')
-    data_validacao = factory.LazyFunction(timezone.now)  # ✅ CORRIGIDO
+    data_validacao = factory.LazyFunction(timezone.now)  
 
 
 class BadgeConquistaFactory(DjangoModelFactory):

@@ -11,6 +11,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
 SECRET_KEY = os.getenv('SECRET_KEY') or 'unsafe-dev-key'
 
+# Detecta execução de testes (pytest ou manage.py test)
+TESTING = (
+    'PYTEST_CURRENT_TEST' in os.environ
+    or 'pytest' in sys.modules
+    or any('test' in arg for arg in sys.argv)
+)
+
 if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = 'django-insecure-chave-dev-local-mude-isso-em-producao-' + 'k' * 20
@@ -42,7 +49,8 @@ INSTALLED_APPS = [
     'doacoes',
 ]
 
-if DEBUG and 'test' not in sys.argv:
+# Habilita Debug Toolbar apenas em desenvolvimento real (não em testes)
+if DEBUG and not TESTING:
     INSTALLED_APPS += ['debug_toolbar']
 
 MIDDLEWARE = [
@@ -57,7 +65,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-if DEBUG and 'test' not in sys.argv:
+if DEBUG and not TESTING:
     MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'core.urls'
@@ -99,7 +107,7 @@ else:
     else:
         DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
-if 'test' in sys.argv:
+if TESTING:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}}
 
 AUTH_USER_MODEL = 'contas.Usuario'
@@ -173,7 +181,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Debug Toolbar
-if DEBUG:
+if DEBUG and not TESTING:
     import socket
     INTERNAL_IPS = ['127.0.0.1', 'localhost']
     try:
